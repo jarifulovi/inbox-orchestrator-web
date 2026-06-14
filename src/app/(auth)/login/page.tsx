@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase.client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { authApi } from "@/features/auth/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,10 +16,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await authApi.signIn(email, password);
 
     setLoading(false);
 

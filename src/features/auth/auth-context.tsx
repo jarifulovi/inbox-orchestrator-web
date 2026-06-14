@@ -6,9 +6,11 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import { api } from "@/lib/axios";
-import { supabase } from "@/lib/supabase.client";
+import { authApi } from "./api";
 import { setToken } from "@/lib/auth-token";
+import { supabase } from "@/lib/supabase.client";
 
 export type MeResponse = {
   user: {
@@ -17,7 +19,7 @@ export type MeResponse = {
   };
   gmail: {
     connected: boolean;
-    accounts: any[];
+    accounts: any[];  // TODO: Add a type letter
   };
 };
 
@@ -39,7 +41,7 @@ export function AuthProvider({
 
   const fetchMe = async () => {
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await authApi.getSession();
       const sessionToken = data.session?.access_token;
 
       if (!sessionToken) {
@@ -63,10 +65,40 @@ export function AuthProvider({
   };
 
   useEffect(() => {
-    (async () => {
+    let mounted = true;
+
+    const init = async () => {
       await fetchMe();
-      setLoading(false);
-    })();
+      if (mounted) setLoading(false);
+    };
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const token = session?.access_token ?? null;
+
+        setToken(token);
+
+        if (!token) {
+          setMe(null);
+          return;
+        }
+
+        try {
+          const res = await api.get<MeResponse>("/auth/me");
+          setMe(res.data);
+        } catch (err) {
+          console.error("Auth state change /me failed:", err);
+          setMe(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   return (
