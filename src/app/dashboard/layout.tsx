@@ -44,7 +44,7 @@ export default function DashboardLayout({
       <Sidebar />
 
       {/* Main content area */}
-      <div className="ml-[260px] flex flex-col min-h-screen">
+      <div className="ml-[72px] flex flex-col min-h-screen">
         {/* Top bar with account switcher */}
         <TopBar />
 

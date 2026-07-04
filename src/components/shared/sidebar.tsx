@@ -23,9 +23,9 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[260px] bg-[#0b0d11] border-r border-white/[0.06] flex flex-col z-30 overflow-hidden">
+    <aside className="group fixed left-0 top-0 bottom-0 w-[72px] hover:w-[260px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] bg-[#0b0d11] border-r border-white/[0.06] flex flex-col z-40 overflow-hidden">
       {/* Animated gradient orbs */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+      <div className="absolute inset-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-300" aria-hidden="true">
         <div
           className="sidebar-orb"
           style={{
@@ -51,14 +51,15 @@ export default function Sidebar() {
       </div>
 
       {/* Logo */}
-      <div className="relative z-10 px-5 py-6 flex items-center gap-2.5">
-        <span>
+      <div className="relative z-10 px-5 py-6 flex items-center h-[76px] shrink-0">
+        <div className="flex items-center gap-3">
           <svg
             width="28"
             height="28"
             viewBox="0 0 28 28"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            className="shrink-0"
           >
             <rect width="28" height="28" rx="8" fill="url(#sidebarLogoGrad)" />
             <path
@@ -81,15 +82,15 @@ export default function Sidebar() {
               </linearGradient>
             </defs>
           </svg>
-        </span>
-        <span className="text-white font-semibold text-[15px] tracking-tight">
-          InboxOrchestrator{" "}
-          <span className="text-[#8b7cf8]">AI</span>
-        </span>
+          <span className="text-white font-semibold text-[15px] tracking-tight opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300 w-0 group-hover:w-auto">
+            InboxOrchestrator{" "}
+            <span className="text-[#8b7cf8]">AI</span>
+          </span>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-10 flex-1 px-3 py-2 space-y-1">
+      <nav className="relative z-10 flex-1 px-3 py-2 space-y-2">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -99,20 +100,26 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
+              className={`nav-item flex items-center h-10 px-3 rounded-lg text-sm font-medium relative ${
                 isActive
                   ? "active text-[#8b7cf8]"
                   : "text-white/50 hover:text-white/80"
               }`}
+              title={item.label}
             >
-              <Icon
-                className={`nav-icon size-[18px] ${
-                  isActive ? "text-[#8b7cf8]" : "text-white/30"
-                }`}
-              />
-              {item.label}
+              <div className="flex items-center gap-3 absolute left-3">
+                <Icon
+                  className={`nav-icon size-[20px] shrink-0 ${
+                    isActive ? "text-[#8b7cf8]" : "text-white/30"
+                  }`}
+                />
+                <span className="opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300 w-0 group-hover:w-auto">
+                  {item.label}
+                </span>
+              </div>
+              
               {item.label === "Inbox" && (
-                <span className="ml-auto text-[11px] font-semibold bg-[#6d5bfa]/20 text-[#8b7cf8] px-2 py-0.5 rounded-full">
+                <span className="absolute right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[11px] font-semibold bg-[#6d5bfa]/20 text-[#8b7cf8] px-2 py-0.5 rounded-full">
                   5
                 </span>
               )}
@@ -122,10 +129,17 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="relative z-10 px-3 py-4 border-t border-white/[0.06]">
-        <button className="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 w-full">
-          <LogOut className="size-[18px]" />
-          Sign Out
+      <div className="relative z-10 p-3 border-t border-white/[0.06]">
+        <button 
+          className="nav-item flex items-center h-10 px-3 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 w-full relative"
+          title="Sign Out"
+        >
+          <div className="flex items-center gap-3 absolute left-3">
+            <LogOut className="size-[20px] shrink-0" />
+            <span className="opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300">
+              Sign Out
+            </span>
+          </div>
         </button>
       </div>
     </aside>

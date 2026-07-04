@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, User } from "lucide-react";
+import { ChevronDown, Settings, LogOut, Plus } from "lucide-react";
 import { emailAccounts } from "@/features/inbox/data";
 
 function ProviderIcon({ provider }: { provider: string }) {
@@ -23,30 +23,29 @@ export default function TopBar() {
   const [selectedAccount, setSelectedAccount] = useState(emailAccounts[0]);
 
   return (
-    <header className="h-14 bg-[#0e1117]/80 backdrop-blur-md border-b border-white/[0.06] flex items-center justify-between px-6 sticky top-0 z-20">
-      {/* Left: Account Switcher */}
+    <header className="h-14 bg-[#0e1117]/80 backdrop-blur-md border-b border-white/[0.06] flex items-center justify-end px-6 sticky top-0 z-20">
+      {/* Right: Unified Account & Profile Menu */}
       <div className="relative">
         <button
           onClick={() => setAccountOpen(!accountOpen)}
           className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
         >
-          {/* Account avatar */}
+          {/* Main User Info */}
+          <div className="text-right hidden sm:block">
+            <div className="text-sm font-medium text-white/90">
+              {selectedAccount.name}
+            </div>
+            <div className="text-[11px] text-white/40 flex items-center justify-end gap-1.5 mt-0.5">
+               <ProviderIcon provider={selectedAccount.provider} />
+               {selectedAccount.email}
+            </div>
+          </div>
+          {/* Avatar */}
           <div
-            className="size-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
+            className="size-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
             style={{ background: selectedAccount.avatar_color }}
           >
             {selectedAccount.name.charAt(0)}
-          </div>
-          <div className="text-left">
-            <div className="text-sm font-medium text-white/90 flex items-center gap-2">
-              {selectedAccount.name}
-              <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
-                 <ProviderIcon provider={selectedAccount.provider} />
-              </div>
-            </div>
-            <div className="text-[11px] text-white/40">
-              {selectedAccount.email}
-            </div>
           </div>
           <ChevronDown
             className={`size-4 text-white/30 transition-transform duration-200 ${
@@ -55,72 +54,89 @@ export default function TopBar() {
           />
         </button>
 
-        {/* Dropdown */}
+        {/* Dropdown Menu */}
         {accountOpen && (
-          <div className="absolute top-full left-0 mt-1 w-72 bg-[#161921] border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 py-1.5 z-50">
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-white/25 font-semibold">
-              Switch Account
-            </div>
-            {emailAccounts.map((account) => (
-              <button
-                key={account.email}
-                onClick={() => {
-                  setSelectedAccount(account);
-                  setAccountOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 transition-colors ${
-                  selectedAccount.email === account.email
-                    ? "bg-[#6d5bfa]/10"
-                    : ""
-                }`}
+          <div className="absolute top-full right-0 mt-1 w-72 bg-[#161921] border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 py-1.5 z-50">
+            {/* User Profile Header */}
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-3">
+              <div
+                className="size-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                style={{ background: selectedAccount.avatar_color }}
               >
-                <div
-                  className="size-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                  style={{ background: account.avatar_color }}
-                >
-                  {account.name.charAt(0)}
+                {selectedAccount.name.charAt(0)}
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <div className="text-sm font-medium text-white/90 truncate">
+                  {selectedAccount.name}
                 </div>
-                <div className="text-left flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white/90 truncate flex items-center gap-2">
-                    {account.name}
-                    <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
-                       <ProviderIcon provider={account.provider} />
-                       {account.provider}
+                <div className="text-xs text-[#8b7cf8] font-medium mt-0.5">
+                  Pro Plan
+                </div>
+              </div>
+            </div>
+
+            {/* Connected Accounts */}
+            <div className="py-1.5">
+              <div className="px-4 py-1.5 text-[10px] uppercase tracking-widest text-white/25 font-semibold">
+                Connected Inboxes
+              </div>
+              {emailAccounts.map((account) => (
+                <button
+                  key={account.email}
+                  onClick={() => {
+                    setSelectedAccount(account);
+                    setAccountOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors ${
+                    selectedAccount.email === account.email
+                      ? "bg-[#6d5bfa]/10"
+                      : ""
+                  }`}
+                >
+                  <div
+                    className="size-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: account.avatar_color }}
+                  >
+                    {account.name.charAt(0)}
+                  </div>
+                  <div className="text-left flex-1 min-w-0">
+                    <div className="text-sm font-medium text-white/90 truncate flex items-center gap-2">
+                      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
+                         <ProviderIcon provider={account.provider} />
+                      </div>
+                      <span className="truncate">{account.email}</span>
                     </div>
                   </div>
-                  <div className="text-[11px] text-white/40 truncate">
-                    {account.email}
-                  </div>
-                </div>
-                {account.pending_tasks_count > 0 && (
-                  <span className="text-[11px] font-semibold bg-[#6d5bfa]/20 text-[#8b7cf8] px-2 py-0.5 rounded-full">
-                    {account.pending_tasks_count}
-                  </span>
-                )}
-                {selectedAccount.email === account.email && (
-                  <div className="size-2 rounded-full bg-[#6d5bfa]" />
-                )}
-              </button>
-            ))}
-            <div className="border-t border-white/[0.06] mt-1.5 pt-1.5 px-3">
-              <button className="w-full flex items-center gap-2 px-2 py-2 text-sm text-[#8b7cf8] hover:bg-white/5 rounded-lg transition-colors">
-                <span className="text-lg leading-none">+</span>
+                  {account.pending_tasks_count > 0 && (
+                    <span className="text-[11px] font-semibold bg-[#6d5bfa]/20 text-[#8b7cf8] px-2 py-0.5 rounded-full">
+                      {account.pending_tasks_count}
+                    </span>
+                  )}
+                  {selectedAccount.email === account.email && (
+                    <div className="size-1.5 rounded-full bg-[#6d5bfa]" />
+                  )}
+                </button>
+              ))}
+              
+              <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#8b7cf8] hover:bg-white/5 transition-colors mt-1">
+                <Plus className="size-4" />
                 Add Account
+              </button>
+            </div>
+
+            {/* App Settings / Logout */}
+            <div className="border-t border-white/[0.06] mt-1 pt-1.5">
+              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                <Settings className="size-4" />
+                App Settings
+              </button>
+              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors">
+                <LogOut className="size-4" />
+                Sign Out
               </button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Right: Profile */}
-      <div className="flex items-center gap-3">
-        <div className="text-right hidden sm:block">
-          <div className="text-sm font-medium text-white/80">John Doe</div>
-          <div className="text-[11px] text-white/30">Pro Plan</div>
-        </div>
-        <div className="size-8 rounded-full bg-gradient-to-br from-[#6d5bfa] to-[#46d3e5] flex items-center justify-center">
-          <User className="size-4 text-white" />
-        </div>
       </div>
     </header>
   );
