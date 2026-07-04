@@ -31,4 +31,5 @@ export type EmailAccount = {
   name: string;
   avatar_color: string;
   pending_tasks_count: number;
+  provider: "gmail" | "outlook" | "other";
 };

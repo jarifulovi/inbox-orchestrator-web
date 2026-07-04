@@ -6,12 +6,14 @@ export const emailAccounts: EmailAccount[] = [
     name: "John Doe",
     avatar_color: "#6d5bfa",
     pending_tasks_count: 5,
+    provider: "gmail",
   },
   {
     email: "johnd@personal.com",
     name: "John (Personal)",
     avatar_color: "#46d3e5",
     pending_tasks_count: 2,
+    provider: "gmail",
   },
 ];
 
