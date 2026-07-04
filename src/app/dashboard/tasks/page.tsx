@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   CheckSquare,
   Clock,
@@ -12,7 +13,17 @@ import {
   Filter,
   CalendarDays,
   List,
+  Eye,
+  Reply,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { tasks } from "@/features/tasks/data";
 import {
   Task,
@@ -82,95 +93,168 @@ function TaskCard({ task }: { task: Task }) {
   const status = statusConfig[task.status];
   const StatusIcon = status.icon;
   const overdue = isOverdue(task.due_date);
+  
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [isResolvedUI, setIsResolvedUI] = useState(false);
+
+  // Optimistic UI update for demo purposes
+  const handleResolve = () => {
+    setIsResolvedUI(true);
+    setResolveModalOpen(false);
+  };
+
+  const displayStatus = isResolvedUI ? "resolved" : task.status;
+  const currentStatusConfig = statusConfig[displayStatus];
+  const CurrentStatusIcon = currentStatusConfig.icon;
 
   return (
-    <div className="glass-card rounded-xl px-5 py-4 transition-all duration-200 group">
-      <div className="flex items-start gap-4">
-        {/* Status icon */}
-        <div
-          className={`mt-0.5 size-8 rounded-lg flex items-center justify-center shrink-0 ${
-            task.status === "completed"
-              ? "bg-emerald-500/10"
-              : task.status === "pending"
-                ? "bg-amber-500/10"
-                : task.status === "resolved"
-                  ? "bg-[#6d5bfa]/10"
-                  : "bg-zinc-500/10"
-          }`}
-        >
-          <StatusIcon
-            className={`size-4 ${
-              task.status === "completed"
-                ? "text-emerald-400"
-                : task.status === "pending"
-                  ? "text-amber-400"
-                  : task.status === "resolved"
-                    ? "text-[#8b7cf8]"
-                    : "text-zinc-400"
-            }`}
-          />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <h3
-              className={`text-sm font-semibold truncate ${
-                task.status === "completed" || task.status === "dismissed"
-                  ? "text-white/40 line-through"
-                  : "text-white/90"
-              }`}
-            >
-              {task.title}
-            </h3>
-          </div>
-          
-          <div className="text-xs text-white/50 mb-3 truncate flex items-center gap-1.5">
-            <span className="text-white/30">from:</span>
-            <span className="text-white/70 italic">{task.source_thread_subject}</span>
-          </div>
-
-          {/* Tags row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Priority */}
-            <span
-              className={`badge-${task.priority} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
-            >
-              {task.priority}
-            </span>
-
-            {/* Status */}
-            <span
-              className={`${status.className} text-[10px] font-medium px-2 py-0.5 rounded-full`}
-            >
-              {status.label}
-            </span>
-
-            {/* Intent label */}
-            <span className="flex items-center gap-1 text-[10px] text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
-              <Tag className="size-3" />
-              {intentLabels[task.intent_label]}
-            </span>
-          </div>
-        </div>
-
-        {/* Due date */}
-        <div className="shrink-0 text-right">
-          <span
-            className={`text-xs font-medium ${
-              overdue && task.status === "pending"
-                ? "text-red-400"
-                : "text-white/30"
+    <>
+      <div className="glass-card rounded-xl px-5 py-4 transition-all duration-200 group">
+        <div className="flex items-start gap-4">
+          {/* Status icon */}
+          <div
+            className={`mt-0.5 size-8 rounded-lg flex items-center justify-center shrink-0 ${
+              displayStatus === "completed"
+                ? "bg-emerald-500/10"
+                : displayStatus === "pending"
+                  ? "bg-amber-500/10"
+                  : displayStatus === "resolved"
+                    ? "bg-[#6d5bfa]/10"
+                    : "bg-zinc-500/10"
             }`}
           >
-            {formatDueDate(task.due_date)}
-          </span>
-          {overdue && task.status === "pending" && (
-            <AlertTriangle className="size-3.5 text-red-400 ml-auto mt-1" />
+            <CurrentStatusIcon
+              className={`size-4 ${
+                displayStatus === "completed"
+                  ? "text-emerald-400"
+                  : displayStatus === "pending"
+                    ? "text-amber-400"
+                    : displayStatus === "resolved"
+                      ? "text-[#8b7cf8]"
+                      : "text-zinc-400"
+              }`}
+            />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3
+                className={`text-sm font-semibold truncate ${
+                  displayStatus === "completed" || displayStatus === "dismissed"
+                    ? "text-white/40 line-through"
+                    : "text-white/90"
+                }`}
+              >
+                {task.title}
+              </h3>
+            </div>
+            
+            <div className="text-xs text-white/50 mb-3 truncate flex items-center gap-1.5">
+              <span className="text-white/30">from:</span>
+              <span className="text-white/70 italic">{task.source_thread_subject}</span>
+            </div>
+
+            {/* Tags row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Priority */}
+              <span
+                className={`badge-${task.priority} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+              >
+                {task.priority}
+              </span>
+
+              {/* Status */}
+              <span
+                className={`${currentStatusConfig.className} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+              >
+                {currentStatusConfig.label}
+              </span>
+
+              {/* Intent label */}
+              <span className="flex items-center gap-1 text-[10px] text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+                <Tag className="size-3" />
+                {intentLabels[task.intent_label]}
+              </span>
+            </div>
+          </div>
+
+          {/* Due date */}
+          <div className="shrink-0 text-right">
+            <span
+              className={`text-xs font-medium ${
+                overdue && displayStatus === "pending"
+                  ? "text-red-400"
+                  : "text-white/30"
+              }`}
+            >
+              {formatDueDate(task.due_date)}
+            </span>
+            {overdue && displayStatus === "pending" && (
+              <AlertTriangle className="size-3.5 text-red-400 ml-auto mt-1" />
+            )}
+          </div>
+        </div>
+
+        {/* Actions Bar */}
+        <div className="mt-4 pt-3 border-t border-white/[0.04] flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+          {displayStatus === "pending" && (
+            <button
+              onClick={() => setResolveModalOpen(true)}
+              className="px-3 py-1.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1.5 mr-auto"
+            >
+              <CheckCircle2 className="size-3.5" />
+              Resolve
+            </button>
           )}
+          <Link
+            href={`/dashboard/inbox?threadId=${task.source_thread_id}`}
+            className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Eye className="size-3.5" />
+            View
+          </Link>
+          <Link
+            href={`/dashboard/inbox/reply/${task.source_thread_id}`}
+            className="px-3 py-1.5 text-[11px] font-medium bg-[#6d5bfa]/10 text-[#8b7cf8] hover:bg-[#6d5bfa]/20 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <Reply className="size-3.5" />
+            Reply
+          </Link>
         </div>
       </div>
-    </div>
+
+      {/* Resolve Confirmation Modal */}
+      <Dialog open={resolveModalOpen} onOpenChange={setResolveModalOpen}>
+        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <div className="size-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
+              <CheckCircle2 className="size-6 text-emerald-400" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Resolve Task?</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
+              Are you sure you want to mark <span className="text-white/90 font-medium">"{task.title}"</span> as resolved? This will update the status and remove it from your pending list.
+              <br /><br />
+              <span className="text-[11px] text-white/40 italic">Note: You can turn on auto task resolution from settings.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
+            <button
+              onClick={() => setResolveModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleResolve}
+              className="px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+            >
+              Yes, Resolve
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
