@@ -13,6 +13,7 @@ import {
   CheckSquare,
   Eye,
   Reply,
+  Search,
 } from "lucide-react";
 import { threads } from "@/features/inbox/data";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
@@ -203,21 +204,29 @@ function ThreadRow({ thread }: { thread: Thread }) {
 export default function InboxPage() {
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
       const matchStatus = filterStatus === "all" || t.workflow_status === filterStatus;
       const matchPriority = filterPriority === "all" || t.priority === filterPriority;
-      return matchStatus && matchPriority;
+      
+      const query = searchQuery.toLowerCase();
+      const matchSearch = query === "" || 
+        t.subject.toLowerCase().includes(query) ||
+        t.sender_name.toLowerCase().includes(query) ||
+        t.sender_email.toLowerCase().includes(query);
+
+      return matchStatus && matchPriority && matchSearch;
     });
-  }, [filterStatus, filterPriority]);
+  }, [filterStatus, filterPriority, searchQuery]);
 
   const unreadCount = threads.filter((t) => t.unread).length;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
             <Mail className="size-6 text-[#8b7cf8]" />
@@ -228,8 +237,20 @@ export default function InboxPage() {
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-3">
+        {/* Filters and Search */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="size-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search emails..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#161921] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 w-48 sm:w-56 placeholder:text-white/30"
+            />
+          </div>
+
           <div className="flex items-center gap-2">
             <Filter className="size-4 text-white/30" />
             <span className="text-sm text-white/50 hidden sm:inline-block">Filter:</span>
