@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -16,8 +16,8 @@ import {
   Reply,
   Search,
 } from "lucide-react";
-import { api } from "@/lib/axios";
 import { useAuth } from "@/features/auth/auth-context";
+import { useThreads } from "@/features/inbox/use-threads";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
 
 const priorityLabel: Record<Priority, string> = {
@@ -205,59 +205,48 @@ function ThreadRow({ thread }: { thread: Thread }) {
 
 export default function InboxPage() {
   const { selectedAccount } = useAuth();
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [loadingThreads, setLoadingThreads] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  
+  // Consume the paginated threads state and pagination controllers
+  const {
+    threads,
+    loading: loadingThreads,
+    loadingMore,
+    hasMore,
+    loadMore,
+    syncing,
+    syncInbox,
+  } = useThreads(selectedAccount?.id);
 
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSync = async () => {
-    if (!selectedAccount) return;
-    setSyncing(true);
-    try {
-      await api.post(`/emails/sync?account_id=${selectedAccount.id}`);
-      // Re-fetch threads
-      const res = await api.get<{ threads: Thread[] }>(`/emails/threads?account_id=${selectedAccount.id}`);
-      setThreads(res.data.threads || []);
-    } catch (err) {
-      console.error("Failed to sync inbox:", err);
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const observerTarget = useRef<HTMLDivElement | null>(null);
 
+  // Setup Intersection Observer for infinite scrolling pagination
   useEffect(() => {
-    let mounted = true;
+    if (!hasMore || loadingThreads || loadingMore) return;
 
-    async function fetchThreads() {
-      if (!selectedAccount) {
-        setThreads([]);
-        setLoadingThreads(false);
-        return;
-      }
-      setLoadingThreads(true);
-      try {
-        const res = await api.get<{ threads: Thread[] }>(`/emails/threads?account_id=${selectedAccount.id}`);
-        if (mounted) {
-          setThreads(res.data.threads || []);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
         }
-      } catch (err) {
-        console.error("Failed to fetch threads:", err);
-      } finally {
-        if (mounted) {
-          setLoadingThreads(false);
-        }
-      }
+      },
+      { threshold: 1.0 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
     }
-
-    fetchThreads();
 
     return () => {
-      mounted = false;
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
     };
-  }, [selectedAccount]);
+  }, [hasMore, loadingThreads, loadingMore, loadMore]);
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
@@ -317,7 +306,7 @@ export default function InboxPage() {
         </p>
         <div className="pt-2">
           <button
-            onClick={handleSync}
+            onClick={syncInbox}
             disabled={syncing}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#6d5bfa] hover:bg-[#5b4ae3] disabled:opacity-50 text-sm font-semibold transition-colors shadow-lg shadow-[#6d5bfa]/20 cursor-pointer text-white"
           >
@@ -407,6 +396,18 @@ export default function InboxPage() {
               <p className="text-white/30 text-sm">
                 No threads match this filter.
               </p>
+            </div>
+          )}
+
+          {/* Infinite Scroll Sentinel & Loader */}
+          {hasMore && (
+            <div ref={observerTarget} className="h-16 flex items-center justify-center pt-4">
+              {loadingMore && (
+                <div className="flex items-center gap-2">
+                  <div className="size-5 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-white/40 text-xs">Loading more...</span>
+                </div>
+              )}
             </div>
           )}
         </div>
