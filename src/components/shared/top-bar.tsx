@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Settings, LogOut, Plus } from "lucide-react";
-import { emailAccounts } from "@/features/inbox/data";
+import { useAuth } from "@/features/auth/auth-context";
+import { authApi } from "@/features/auth/api";
 
 function ProviderIcon({ provider }: { provider: string }) {
   if (provider === "gmail") {
@@ -18,9 +20,35 @@ function ProviderIcon({ provider }: { provider: string }) {
   return null;
 }
 
+function getAvatarColor(email: string) {
+  const colors = ["#6d5bfa", "#46d3e5", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6"];
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
 export default function TopBar() {
+  const router = useRouter();
+  const { me } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState(emailAccounts[0]);
+
+  const accounts = me?.gmail?.accounts || [];
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  // Derive the active selected account
+  const selectedAccount = accounts.find(acc => acc.id === selectedAccountId) || accounts[0] || null;
+
+  const handleSignOut = async () => {
+    try {
+      await authApi.signOut();
+      router.push("/login");
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
 
   return (
     <header className="h-14 bg-[#0e1117]/80 backdrop-blur-md border-b border-white/[0.06] flex items-center justify-end px-6 sticky top-0 z-20">
@@ -32,20 +60,35 @@ export default function TopBar() {
         >
           {/* Main User Info */}
           <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium text-white/90">
-              {selectedAccount.name}
-            </div>
-            <div className="text-[11px] text-white/40 flex items-center justify-end gap-1.5 mt-0.5">
-               <ProviderIcon provider={selectedAccount.provider} />
-               {selectedAccount.email}
-            </div>
+            {selectedAccount ? (
+              <>
+                <div className="text-sm font-medium text-white/90">
+                  {selectedAccount.email.split("@")[0]}
+                </div>
+                <div className="text-[11px] text-white/40 flex items-center justify-end gap-1.5 mt-0.5">
+                   <ProviderIcon provider={selectedAccount.provider} />
+                   {selectedAccount.email}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-sm font-medium text-white/90">
+                  {me?.user?.email ? me.user.email.split("@")[0] : "User"}
+                </div>
+                <div className="text-[11px] text-white/40 flex items-center justify-end gap-1.5 mt-0.5">
+                   {me?.user?.email || "No connected inbox"}
+                </div>
+              </>
+            )}
           </div>
           {/* Avatar */}
           <div
             className="size-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-            style={{ background: selectedAccount.avatar_color }}
+            style={{
+              background: getAvatarColor(selectedAccount ? selectedAccount.email : (me?.user?.email || "user")),
+            }}
           >
-            {selectedAccount.name.charAt(0)}
+            {(selectedAccount ? selectedAccount.email : (me?.user?.email || "U")).charAt(0).toUpperCase()}
           </div>
           <ChevronDown
             className={`size-4 text-white/30 transition-transform duration-200 ${
@@ -61,13 +104,13 @@ export default function TopBar() {
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-3">
               <div
                 className="size-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                style={{ background: selectedAccount.avatar_color }}
+                style={{ background: getAvatarColor(me?.user?.email || "user") }}
               >
-                {selectedAccount.name.charAt(0)}
+                {(me?.user?.email || "U").charAt(0).toUpperCase()}
               </div>
               <div className="text-left flex-1 min-w-0">
-                <div className="text-sm font-medium text-white/90 truncate">
-                  {selectedAccount.name}
+                <div className="text-sm font-medium text-white/90 truncate" title={me?.user?.email}>
+                  {me?.user?.email}
                 </div>
                 <div className="text-xs text-[#8b7cf8] font-medium mt-0.5">
                   Pro Plan
@@ -80,45 +123,53 @@ export default function TopBar() {
               <div className="px-4 py-1.5 text-[10px] uppercase tracking-widest text-white/25 font-semibold">
                 Connected Inboxes
               </div>
-              {emailAccounts.map((account) => (
-                <button
-                  key={account.email}
-                  onClick={() => {
-                    setSelectedAccount(account);
-                    setAccountOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors ${
-                    selectedAccount.email === account.email
-                      ? "bg-[#6d5bfa]/10"
-                      : ""
-                  }`}
-                >
-                  <div
-                    className="size-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                    style={{ background: account.avatar_color }}
-                  >
-                    {account.name.charAt(0)}
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white/90 truncate flex items-center gap-2">
-                      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
-                         <ProviderIcon provider={account.provider} />
+              {accounts.length === 0 ? (
+                <div className="px-4 py-2 text-xs text-white/40 italic">
+                  No connected inboxes
+                </div>
+              ) : (
+                accounts.map((account) => {
+                  const isSelected = selectedAccount?.id === account.id;
+                  return (
+                    <button
+                      key={account.id}
+                      onClick={() => {
+                        setSelectedAccountId(account.id);
+                        setAccountOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors ${
+                        isSelected ? "bg-[#6d5bfa]/10" : ""
+                      }`}
+                    >
+                      <div
+                        className="size-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: getAvatarColor(account.email) }}
+                      >
+                        {account.email.charAt(0).toUpperCase()}
                       </div>
-                      <span className="truncate">{account.email}</span>
-                    </div>
-                  </div>
-                  {account.pending_tasks_count > 0 && (
-                    <span className="text-[11px] font-semibold bg-[#6d5bfa]/20 text-[#8b7cf8] px-2 py-0.5 rounded-full">
-                      {account.pending_tasks_count}
-                    </span>
-                  )}
-                  {selectedAccount.email === account.email && (
-                    <div className="size-1.5 rounded-full bg-[#6d5bfa]" />
-                  )}
-                </button>
-              ))}
+                      <div className="text-left flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white/90 truncate flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-white/40 bg-white/5 px-1.5 py-0.5 rounded">
+                            <ProviderIcon provider={account.provider} />
+                          </div>
+                          <span className="truncate" title={account.email}>{account.email}</span>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="size-1.5 rounded-full bg-[#6d5bfa]" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
               
-              <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#8b7cf8] hover:bg-white/5 transition-colors mt-1">
+              <button
+                onClick={() => {
+                  router.push("/dashboard/settings");
+                  setAccountOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[#8b7cf8] hover:bg-white/5 transition-colors mt-1"
+              >
                 <Plus className="size-4" />
                 Add Account
               </button>
@@ -126,11 +177,20 @@ export default function TopBar() {
 
             {/* App Settings / Logout */}
             <div className="border-t border-white/[0.06] mt-1 pt-1.5">
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+              <button
+                onClick={() => {
+                  router.push("/dashboard/settings");
+                  setAccountOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+              >
                 <Settings className="size-4" />
                 App Settings
               </button>
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors"
+              >
                 <LogOut className="size-4" />
                 Sign Out
               </button>

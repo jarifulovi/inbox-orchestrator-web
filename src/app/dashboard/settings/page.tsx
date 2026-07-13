@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { defaultSettings } from "@/features/settings/data";
 import { UserSettings } from "@/features/settings/types";
+import { connectGoogle } from "@/features/google/google.api";
+import { toast } from "sonner";
 
 function Toggle({
   enabled,
@@ -73,6 +75,20 @@ function SelectOption({
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+
+  const handleConnectAccount = async () => {
+    try {
+      const res = await connectGoogle();
+      if (res?.auth_url) {
+        window.location.href = res.auth_url;
+      } else {
+        toast.error("Failed to get connection URL.");
+      }
+    } catch (err) {
+      console.error("Failed to connect Google account:", err);
+      toast.error("Failed to initiate Google account connection.");
+    }
+  };
 
   const updateAI = (key: string, value: unknown) => {
     setSettings((prev) => ({
@@ -197,7 +213,10 @@ export default function SettingsPage() {
           ))}
 
           {/* Add account button */}
-          <button className="w-full glass-card rounded-xl px-5 py-4 flex items-center justify-center gap-2 text-sm text-[#8b7cf8] hover:bg-[#6d5bfa]/10 transition-colors">
+          <button
+            onClick={handleConnectAccount}
+            className="w-full glass-card rounded-xl px-5 py-4 flex items-center justify-center gap-2 text-sm text-[#8b7cf8] hover:bg-[#6d5bfa]/10 transition-colors"
+          >
             <Plus className="size-4" />
             Connect Another Account
           </button>

@@ -12,6 +12,18 @@ import { authApi } from "./api";
 import { setToken } from "@/lib/auth-token";
 import { supabase } from "@/lib/supabase.client";
 
+export type ConnectedAccount = {
+  id: string;
+  provider: string;
+  email: string;
+  is_active: boolean;
+  sync: {
+    mode: string | null;
+    cursor: string | null;
+    last_sync_at: string | null;
+  };
+};
+
 export type MeResponse = {
   user: {
     id: string;
@@ -19,7 +31,7 @@ export type MeResponse = {
   };
   gmail: {
     connected: boolean;
-    accounts: any[];  // TODO: Add a type letter
+    accounts: ConnectedAccount[];
   };
 };
 

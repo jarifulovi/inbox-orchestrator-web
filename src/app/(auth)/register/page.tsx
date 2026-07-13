@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/features/auth/api";
 import { cn } from "@/lib/utils";
+import { setToken } from "@/lib/auth-token";
+import { connectGoogle } from "@/features/google/google.api";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
@@ -78,14 +80,27 @@ export default function RegisterPage() {
     }
 
     if (data?.user) {
-      toast.success("Account created! Setting up your workspace…");
-      setTimeout(() => router.push("/dashboard"), 300);
+      if (data.session) {
+        toast.success("Account created! Redirecting to Google connection…");
+        setToken(data.session.access_token);
+        try {
+          const res = await connectGoogle();
+          if (res?.auth_url) {
+            window.location.href = res.auth_url;
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to connect Google:", err);
+        }
+        // Fallback to dashboard if connectGoogle fails
+        setTimeout(() => router.push("/dashboard"), 1500);
+      } else {
+        // Email confirmation flow
+        toast.success("Check your inbox to confirm your account");
+        router.push("/login");
+      }
       return;
     }
-
-    // Email confirmation flow
-    toast.success("Check your inbox to confirm your account");
-    router.push("/login");
   };
 
   return (

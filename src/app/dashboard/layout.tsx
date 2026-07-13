@@ -14,23 +14,23 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   // AUTH CHECK TEMPORARILY DISABLED
-  // const { me, loading } = useAuth();
-  // const router = useRouter();
+  const { me, loading } = useAuth();
+  const router = useRouter();
 
 
-  // useEffect(() => {
-  //   if (!loading && !me) {
-  //     router.replace("/login");
-  //   }
-  // }, [loading, me, router]);
+  useEffect(() => {
+    if (!loading && !me) {
+      router.replace("/login");
+    }
+  }, [loading, me, router]);
 
-  // if (loading) {
-  //   return <LoadingSpinner fullScreen size="lg" label="Loading dashboard…" />;
-  // }
+  if (loading) {
+    return <LoadingSpinner fullScreen size="lg" label="Loading dashboard…" />;
+  }
 
-  // if (!me) {
-  //   return null;
-  // }
+  if (!me) {
+    return null;
+  }
 
 
   return (
