@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   ChevronDown,
   ChevronRight,
@@ -15,7 +16,8 @@ import {
   Reply,
   Search,
 } from "lucide-react";
-import { threads } from "@/features/inbox/data";
+import { api } from "@/lib/axios";
+import { useAuth } from "@/features/auth/auth-context";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
 
 const priorityLabel: Record<Priority, string> = {
@@ -202,9 +204,60 @@ function ThreadRow({ thread }: { thread: Thread }) {
 }
 
 export default function InboxPage() {
+  const { selectedAccount } = useAuth();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSync = async () => {
+    if (!selectedAccount) return;
+    setSyncing(true);
+    try {
+      await api.post(`/emails/sync?account_id=${selectedAccount.id}`);
+      // Re-fetch threads
+      const res = await api.get<{ threads: Thread[] }>(`/emails/threads?account_id=${selectedAccount.id}`);
+      setThreads(res.data.threads || []);
+    } catch (err) {
+      console.error("Failed to sync inbox:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchThreads() {
+      if (!selectedAccount) {
+        setThreads([]);
+        setLoadingThreads(false);
+        return;
+      }
+      setLoadingThreads(true);
+      try {
+        const res = await api.get<{ threads: Thread[] }>(`/emails/threads?account_id=${selectedAccount.id}`);
+        if (mounted) {
+          setThreads(res.data.threads || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch threads:", err);
+      } finally {
+        if (mounted) {
+          setLoadingThreads(false);
+        }
+      }
+    }
+
+    fetchThreads();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedAccount]);
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
@@ -219,9 +272,68 @@ export default function InboxPage() {
 
       return matchStatus && matchPriority && matchSearch;
     });
-  }, [filterStatus, filterPriority, searchQuery]);
+  }, [threads, filterStatus, filterPriority, searchQuery]);
 
-  const unreadCount = threads.filter((t) => t.unread).length;
+  const unreadCount = useMemo(() => threads.filter((t) => t.unread).length, [threads]);
+
+  if (!selectedAccount) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <Mail className="size-16 text-[#8b7cf8]/20 mx-auto animate-bounce" />
+        <h2 className="text-xl font-bold text-white">Connect your inbox</h2>
+        <p className="text-sm text-white/40 leading-relaxed">
+          It looks like you don't have any inboxes connected yet. Connect your Google account to start orchestrating your inbox with AI.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/dashboard/settings"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#6d5bfa] hover:bg-[#5b4ae3] text-sm font-semibold transition-colors shadow-lg shadow-[#6d5bfa]/20"
+          >
+            Go to Settings
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingThreads) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-8 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+          <span className="text-white/40 text-sm">Orchestrating inbox...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (threads.length === 0) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <Mail className="size-16 text-[#8b7cf8]/20 mx-auto animate-bounce" />
+        <h2 className="text-xl font-bold text-white">No emails ingested</h2>
+        <p className="text-sm text-white/40 leading-relaxed">
+          No emails have been ingested yet for {selectedAccount.email}. Click below to perform a hard sync to fetch emails.
+        </p>
+        <div className="pt-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#6d5bfa] hover:bg-[#5b4ae3] disabled:opacity-50 text-sm font-semibold transition-colors shadow-lg shadow-[#6d5bfa]/20 cursor-pointer text-white"
+          >
+            {syncing ? (
+              <>
+                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 inline-block" />
+                Syncing...
+              </>
+            ) : (
+              "Sync Inbox"
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

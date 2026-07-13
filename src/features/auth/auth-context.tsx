@@ -39,6 +39,8 @@ type AuthContextType = {
   me: MeResponse | null;
   loading: boolean;
   refreshUser: () => Promise<void>;
+  selectedAccount: ConnectedAccount | null;
+  setSelectedAccount: (account: ConnectedAccount | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -50,6 +52,18 @@ export function AuthProvider({
 }) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedAccount, setSelectedAccount] = useState<ConnectedAccount | null>(null);
+
+  useEffect(() => {
+    if (me?.gmail?.accounts && me.gmail.accounts.length > 0) {
+      const stillExists = me.gmail.accounts.some(acc => acc.id === selectedAccount?.id);
+      if (!selectedAccount || !stillExists) {
+        setSelectedAccount(me.gmail.accounts[0]);
+      }
+    } else {
+      setSelectedAccount(null);
+    }
+  }, [me, selectedAccount]);
 
   const fetchMe = async () => {
     try {
@@ -114,7 +128,7 @@ export function AuthProvider({
   }, []);
 
   return (
-    <AuthContext.Provider value={{ me, loading, refreshUser }}>
+    <AuthContext.Provider value={{ me, loading, refreshUser, selectedAccount, setSelectedAccount }}>
       {children}
     </AuthContext.Provider>
   );

@@ -32,14 +32,10 @@ function getAvatarColor(email: string) {
 
 export default function TopBar() {
   const router = useRouter();
-  const { me } = useAuth();
+  const { me, selectedAccount, setSelectedAccount } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
 
   const accounts = me?.gmail?.accounts || [];
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-
-  // Derive the active selected account
-  const selectedAccount = accounts.find(acc => acc.id === selectedAccountId) || accounts[0] || null;
 
   const handleSignOut = async () => {
     try {
@@ -134,7 +130,7 @@ export default function TopBar() {
                     <button
                       key={account.id}
                       onClick={() => {
-                        setSelectedAccountId(account.id);
+                        setSelectedAccount(account);
                         setAccountOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors ${
