@@ -43,8 +43,8 @@ export default function DashboardLayout({
         {/* Top bar with account switcher */}
         <TopBar />
 
-        {/* Page content */}
-        <main className="flex-1 p-6 overflow-y-auto scrollbar-thin">
+        {/* Page content — each page manages its own padding and scroll */}
+        <main className="flex-1 overflow-hidden">
           {children}
         </main>
       </div>

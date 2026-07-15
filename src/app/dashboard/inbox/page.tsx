@@ -325,6 +325,7 @@ export default function InboxPage() {
   }
 
   return (
+    <div className="h-full overflow-y-auto scrollbar-thin p-6">
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -412,6 +413,7 @@ export default function InboxPage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }

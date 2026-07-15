@@ -9,10 +9,12 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
+  { href: "/dashboard/threads", label: "Threads", icon: MessageSquare },
   { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/dashboard/search", label: "Smart Search", icon: Search },
   { href: "/dashboard/analytics", label: "Sender Analysis", icon: BarChart3 },
