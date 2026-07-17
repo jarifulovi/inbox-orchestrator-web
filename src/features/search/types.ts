@@ -11,6 +11,8 @@ export type SearchResult = {
     sender?: string;
     priority?: string;
     status?: string;
+    threadId?: string;
+    emailId?: string;
   };
 };
 

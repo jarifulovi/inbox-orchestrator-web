@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Clock,
@@ -11,8 +12,10 @@ import {
   ArrowRight,
   X,
 } from "lucide-react";
-import { allSearchResults, recentSearches } from "@/features/search/data";
-import { SearchResultType } from "@/features/search/types";
+import { useAuth } from "@/features/auth/auth-context";
+import { api } from "@/lib/axios";
+import { recentSearches } from "@/features/search/data";
+import { SearchResultType, SearchResult, RecentSearch } from "@/features/search/types";
 
 const typeConfig: Record<
   SearchResultType,
@@ -24,22 +27,165 @@ const typeConfig: Record<
 };
 
 export default function SearchPage() {
-  const [query, setQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
+  const router = useRouter();
+  const { selectedAccount } = useAuth();
 
-  const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return allSearchResults.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.snippet.toLowerCase().includes(q)
-    );
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const limit = 20;
+
+  const [recent, setRecent] = useState<RecentSearch[]>([]);
+  const observerTarget = useRef<HTMLDivElement | null>(null);
+
+  // Initialize and load recent searches from local storage
+  useEffect(() => {
+    const saved = localStorage.getItem("recent_searches");
+    if (saved) {
+      try {
+        setRecent(JSON.parse(saved));
+      } catch (e) {
+        setRecent(recentSearches);
+      }
+    } else {
+      setRecent(recentSearches);
+    }
+  }, []);
+
+  // Debounce the search input (350ms delay)
+  useEffect(() => {
+    if (query.trim().length < 3) {
+      setDebouncedQuery("");
+      return;
+    }
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 350);
+    return () => clearTimeout(handler);
   }, [query]);
+
+  // Helper to persist search query in history
+  const saveRecentSearch = (searchQuery: string, count: number) => {
+    if (!searchQuery.trim()) return;
+    setRecent((prev) => {
+      const filtered = prev.filter(
+        (item) => item.query.toLowerCase() !== searchQuery.toLowerCase()
+      );
+      const updated = [
+        {
+          id: `rs-${Date.now()}`,
+          query: searchQuery,
+          timestamp: new Date().toISOString(),
+          result_count: count,
+        },
+        ...filtered,
+      ].slice(0, 5);
+      localStorage.setItem("recent_searches", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Perform backend search API query
+  const fetchResults = useCallback(
+    async (q: string, currentOffset: number, append: boolean) => {
+      if (!selectedAccount?.id || !q) return;
+      try {
+        if (!append) setLoading(true);
+        else setLoadingMore(true);
+
+        const res = await api.get<{ results: SearchResult[] }>(
+          `/emails/search?account_id=${
+            selectedAccount.id
+          }&q=${encodeURIComponent(
+            q
+          )}&limit=${limit}&offset=${currentOffset}&similarity_cutoff=0.35`
+        );
+        const newResults = res.data.results || [];
+
+        if (append) {
+          setResults((prev) => [...prev, ...newResults]);
+        } else {
+          setResults(newResults);
+          saveRecentSearch(q, newResults.length);
+        }
+
+        setHasMore(newResults.length === limit);
+      } catch (err) {
+        console.error("Failed to execute smart search:", err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [selectedAccount?.id]
+  );
+
+  // Trigger search when debounced query changes
+  useEffect(() => {
+    setResults([]);
+    setOffset(0);
+    setHasMore(true);
+
+    if (!debouncedQuery) {
+      return;
+    }
+
+    fetchResults(debouncedQuery, 0, false);
+  }, [debouncedQuery, fetchResults]);
+
+  // Load next paginated page
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || !debouncedQuery) return;
+    const nextOffset = offset + limit;
+    await fetchResults(debouncedQuery, nextOffset, true);
+    setOffset(nextOffset);
+  }, [loading, loadingMore, hasMore, debouncedQuery, offset, fetchResults]);
+
+  // Setup infinite scroll intersection observer
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore || !debouncedQuery) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, loadingMore, loadMore, debouncedQuery]);
 
   const handleRecentClick = (searchQuery: string) => {
     setQuery(searchQuery);
-    setIsSearching(true);
+    setDebouncedQuery(searchQuery);
+  };
+
+  // Route to the threads page on result click
+  const handleResultClick = (result: SearchResult) => {
+    const threadId = result.metadata.threadId;
+    const emailId = result.metadata.emailId;
+    if (threadId) {
+      let targetUrl = `/dashboard/threads/${threadId}`;
+      if (emailId) {
+        targetUrl += `?email=${emailId}`;
+      }
+      router.push(targetUrl);
+    }
   };
 
   return (
@@ -67,7 +213,6 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              setIsSearching(e.target.value.length > 0);
             }}
             placeholder="e.g. 'partnership proposals from last week' or 'pending code reviews'"
             className="w-full h-13 pl-12 pr-12 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#6d5bfa]/40 focus:border-[#6d5bfa]/40 transition-all duration-200"
@@ -76,7 +221,8 @@ export default function SearchPage() {
             <button
               onClick={() => {
                 setQuery("");
-                setIsSearching(false);
+                setDebouncedQuery("");
+                setResults([]);
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
             >
@@ -87,99 +233,130 @@ export default function SearchPage() {
       </div>
 
       {/* Results or recent searches */}
-      {isSearching && query.trim() ? (
+      {debouncedQuery.trim() ? (
         <div className="space-y-4">
           {/* Results header */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-white/40">
               {results.length} result{results.length !== 1 ? "s" : ""} for{" "}
-              <span className="text-white/70 font-medium">&ldquo;{query}&rdquo;</span>
+              <span className="text-white/70 font-medium">
+                &ldquo;{debouncedQuery}&rdquo;
+              </span>
             </span>
           </div>
 
-          {/* Results list */}
-          <div className="space-y-2">
-            {results.map((result) => {
-              const config = typeConfig[result.type];
-              const TypeIcon = config.icon;
-
-              return (
+          {/* Skeletons/Results list */}
+          {loading && results.length === 0 ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
                 <div
-                  key={result.id}
-                  className="glass-card rounded-xl px-5 py-4 cursor-pointer group"
+                  key={n}
+                  className="glass-card rounded-xl px-5 py-4 animate-pulse flex items-start gap-4"
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Type icon */}
-                    <div className="size-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-                      <TypeIcon className={`size-4 ${config.color}`} />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className={`text-[10px] uppercase tracking-widest font-semibold ${config.color}`}
-                        >
-                          {config.label}
-                        </span>
-                        <span className="text-[10px] text-white/15">
-                          · {Math.round(result.relevance_score * 100)}% match
-                        </span>
-                      </div>
-                      <h3 className="text-sm font-semibold text-white/90 mb-1 group-hover:text-white transition-colors">
-                        {result.title}
-                      </h3>
-                      <p className="text-xs text-white/35 line-clamp-2">
-                        {result.snippet}
-                      </p>
-
-                      {/* Metadata tags */}
-                      {(result.metadata.sender ||
-                        result.metadata.priority ||
-                        result.metadata.status) && (
-                        <div className="flex items-center gap-2 mt-2">
-                          {result.metadata.sender && (
-                            <span className="text-[10px] text-white/25 bg-white/5 px-2 py-0.5 rounded-full">
-                              {result.metadata.sender}
-                            </span>
-                          )}
-                          {result.metadata.priority && (
-                            <span
-                              className={`badge-${result.metadata.priority} text-[10px] font-medium px-2 py-0.5 rounded-full`}
-                            >
-                              {result.metadata.priority}
-                            </span>
-                          )}
-                          {result.metadata.status && (
-                            <span
-                              className={`badge-${result.metadata.status} text-[10px] font-medium px-2 py-0.5 rounded-full`}
-                            >
-                              {result.metadata.status}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Arrow */}
-                    <ArrowRight className="size-4 text-white/10 group-hover:text-white/30 transition-colors shrink-0 mt-2" />
+                  <div className="size-9 rounded-lg bg-white/5 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-white/10 rounded w-1/4" />
+                    <div className="h-4 bg-white/10 rounded w-3/4" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {results.map((result) => {
+                const config = typeConfig[result.type];
+                const TypeIcon = config.icon;
 
-            {results.length === 0 && (
-              <div className="glass-card rounded-xl px-6 py-16 text-center">
-                <Search className="size-10 text-white/10 mx-auto mb-3" />
-                <p className="text-white/30 text-sm">
-                  No results found for &ldquo;{query}&rdquo;
-                </p>
-                <p className="text-white/15 text-xs mt-1">
-                  Try different keywords or phrases
-                </p>
-              </div>
-            )}
-          </div>
+                return (
+                  <div
+                    key={result.id}
+                    onClick={() => handleResultClick(result)}
+                    className="glass-card rounded-xl px-5 py-4 cursor-pointer group"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Type icon */}
+                      <div className="size-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                        <TypeIcon className={`size-4 ${config.color}`} />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`text-[10px] uppercase tracking-widest font-semibold ${config.color}`}
+                          >
+                            {config.label}
+                          </span>
+                          <span className="text-[10px] text-white/15">
+                            · {Math.round(result.relevance_score * 100)}% match
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-white/90 mb-1 group-hover:text-white transition-colors">
+                          {result.title}
+                        </h3>
+                        <p className="text-xs text-white/35 line-clamp-2">
+                          {result.snippet}
+                        </p>
+
+                        {/* Metadata tags */}
+                        {(result.metadata.sender ||
+                          result.metadata.priority ||
+                          result.metadata.status) && (
+                          <div className="flex items-center gap-2 mt-2">
+                            {result.metadata.sender && (
+                              <span className="text-[10px] text-white/25 bg-white/5 px-2 py-0.5 rounded-full">
+                                {result.metadata.sender}
+                              </span>
+                            )}
+                            {result.metadata.priority && (
+                              <span
+                                className={`badge-${result.metadata.priority} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+                              >
+                                {result.metadata.priority}
+                              </span>
+                            )}
+                            {result.metadata.status && (
+                              <span
+                                className={`badge-${result.metadata.status} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+                              >
+                                {result.metadata.status}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Arrow */}
+                      <ArrowRight className="size-4 text-white/10 group-hover:text-white/30 transition-colors shrink-0 mt-2" />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {results.length === 0 && !loading && (
+                <div className="glass-card rounded-xl px-6 py-16 text-center">
+                  <Search className="size-10 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/30 text-sm">
+                    No results found for &ldquo;{debouncedQuery}&rdquo;
+                  </p>
+                  <p className="text-white/15 text-xs mt-1">
+                    Try different keywords or phrases
+                  </p>
+                </div>
+              )}
+
+              {/* Load More observer loader */}
+              {hasMore && results.length > 0 && (
+                <div
+                  ref={observerTarget}
+                  className="h-16 flex items-center justify-center"
+                >
+                  <div className="size-5 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -189,7 +366,7 @@ export default function SearchPage() {
           </div>
 
           <div className="space-y-1">
-            {recentSearches.map((search) => (
+            {recent.map((search) => (
               <button
                 key={search.id}
                 onClick={() => handleRecentClick(search.query)}
@@ -205,6 +382,11 @@ export default function SearchPage() {
                 <ArrowRight className="size-3.5 text-white/10 group-hover:text-white/25 shrink-0" />
               </button>
             ))}
+            {recent.length === 0 && (
+              <p className="text-xs text-white/20 px-4 py-2">
+                No recent searches.
+              </p>
+            )}
           </div>
         </div>
       )}
