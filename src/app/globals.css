@@ -24,6 +24,10 @@
   --input: #e4e4e7;
   --ring: #6d5bfa;
   --radius: 0.5rem;
+
+  /* Theme-aware scrollbar tokens */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
 }
 
 .dark {
@@ -47,6 +51,10 @@
   --border: #27272a;
   --input: #27272a;
   --ring: #6d5bfa;
+
+  /* Theme-aware scrollbar tokens */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.15);
 }
 
 @layer base {
@@ -64,19 +72,26 @@
 
 /* ── Dashboard-specific utilities ───────────────────────── */
 
-/* Custom scrollbar */
-.scrollbar-thin::-webkit-scrollbar {
+/* Custom scrollbar globally */
+::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
-.scrollbar-thin::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 /* Glass card surface */
