@@ -104,7 +104,7 @@ export const tasks: Task[] = [
     id: "task-010",
     title: "Check tracking for mechanical keyboard",
     priority: "low",
-    status: "resolved",
+    status: "completed",
     intent_label: "follow_up",
     due_date: "2026-07-06T12:00:00Z",
     source_thread_id: "t-008",

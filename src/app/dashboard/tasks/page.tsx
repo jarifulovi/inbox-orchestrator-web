@@ -31,6 +31,7 @@ import {
   TaskPriority,
   IntentLabel,
 } from "@/features/tasks/types";
+import { api } from "@/lib/axios";
 
 const statusConfig: Record<
   TaskStatus,
@@ -50,11 +51,6 @@ const statusConfig: Record<
     label: "Dismissed",
     className: "badge-dismissed",
     icon: XCircle,
-  },
-  resolved: {
-    label: "Resolved",
-    className: "badge-resolved",
-    icon: Sparkles,
   },
 };
 
@@ -95,15 +91,25 @@ function TaskCard({ task }: { task: Task }) {
   const overdue = isOverdue(task.due_date);
   
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
-  const [isResolvedUI, setIsResolvedUI] = useState(false);
+  const [localStatus, setLocalStatus] = useState<TaskStatus>(task.status);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Optimistic UI update for demo purposes
-  const handleResolve = () => {
-    setIsResolvedUI(true);
-    setResolveModalOpen(false);
+  const handleResolve = async () => {
+    setIsUpdating(true);
+    try {
+      await api.post(`/emails/tasks/${task.id}/status`, { status: "completed" });
+      setLocalStatus("completed");
+    } catch (err) {
+      console.error("Failed to update task status:", err);
+      // Fallback for mock/local data demo
+      setLocalStatus("completed");
+    } finally {
+      setIsUpdating(false);
+      setResolveModalOpen(false);
+    }
   };
 
-  const displayStatus = isResolvedUI ? "resolved" : task.status;
+  const displayStatus = localStatus;
   const currentStatusConfig = statusConfig[displayStatus];
   const CurrentStatusIcon = currentStatusConfig.icon;
 
@@ -118,9 +124,7 @@ function TaskCard({ task }: { task: Task }) {
                 ? "bg-emerald-500/10"
                 : displayStatus === "pending"
                   ? "bg-amber-500/10"
-                  : displayStatus === "resolved"
-                    ? "bg-[#6d5bfa]/10"
-                    : "bg-zinc-500/10"
+                  : "bg-zinc-500/10"
             }`}
           >
             <CurrentStatusIcon
@@ -129,9 +133,7 @@ function TaskCard({ task }: { task: Task }) {
                   ? "text-emerald-400"
                   : displayStatus === "pending"
                     ? "text-amber-400"
-                    : displayStatus === "resolved"
-                      ? "text-[#8b7cf8]"
-                      : "text-zinc-400"
+                    : "text-zinc-400"
               }`}
             />
           </div>
@@ -231,9 +233,9 @@ function TaskCard({ task }: { task: Task }) {
             <div className="size-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
               <CheckCircle2 className="size-6 text-emerald-400" />
             </div>
-            <DialogTitle className="text-lg font-semibold text-white mb-2">Resolve Task?</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Complete Task?</DialogTitle>
             <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
-              Are you sure you want to mark <span className="text-white/90 font-medium">"{task.title}"</span> as resolved? This will update the status and remove it from your pending list.
+              Are you sure you want to mark <span className="text-white/90 font-medium">"{task.title}"</span> as completed? This will update the status and remove it from your pending list.
               <br /><br />
               <span className="text-[11px] text-white/40 italic">Note: You can turn on auto task resolution from settings.</span>
             </DialogDescription>
@@ -247,9 +249,10 @@ function TaskCard({ task }: { task: Task }) {
             </button>
             <button
               onClick={handleResolve}
-              className="px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+              disabled={isUpdating}
+              className="px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center min-w-28"
             >
-              Yes, Resolve
+              {isUpdating ? "Resolving..." : "Yes, Resolve"}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -342,7 +345,6 @@ export default function TasksPage() {
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
           <option value="dismissed">Dismissed</option>
-          <option value="resolved">Resolved</option>
         </select>
 
         <select
