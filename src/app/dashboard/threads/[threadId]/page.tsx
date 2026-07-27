@@ -147,8 +147,8 @@ function ThreadListItem({
 
           {/* Row 3: badges */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`${workflowColor[thread.workflow_status]} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
-              {workflowLabel[thread.workflow_status]}
+            <span className={`${workflowColor[thread.workflow_status] || workflowColor.informational} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
+              {workflowLabel[thread.workflow_status] || "Info"}
             </span>
             {thread.tasks_count > 0 && (
               <span className="flex items-center gap-0.5 text-[9px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
@@ -447,16 +447,16 @@ export default function ThreadsPage() {
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="text-xs text-white/40">{emails.length} messages</span>
                     <span className="text-white/20">·</span>
-                    <span className={`${workflowColor[activeThread.workflow_status]} text-[10px] font-medium px-1.5 py-0.5 rounded-full`}>
-                      {workflowLabel[activeThread.workflow_status]}
+                    <span className={`${workflowColor[activeThread.workflow_status] || workflowColor.informational} text-[10px] font-medium px-1.5 py-0.5 rounded-full`}>
+                      {workflowLabel[activeThread.workflow_status] || "Info"}
                     </span>
-                    <span className={`${priorityColor[activeThread.priority]} text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
+                    <span className={`${priorityColor[activeThread.priority] || priorityColor.medium} text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
                       {activeThread.priority}
                     </span>
                   </div>
                 </div>
                 <div className="shrink-0 flex items-center gap-1.5" title={`Trust: ${activeThread.security_trust_level}`}>
-                  {securityIcon[activeThread.security_trust_level]}
+                  {securityIcon[activeThread.security_trust_level] || securityIcon.unverified}
                 </div>
               </div>
             </div>
@@ -513,30 +513,20 @@ export default function ThreadsPage() {
                 </div>
               </div>
 
-              {/* Meta chips */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-2.5 py-2">
-                  <p className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Messages</p>
-                  <p className="text-xs font-semibold text-white">{emails.length}</p>
-                </div>
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-2.5 py-2">
-                  <p className="text-[9px] text-white/25 uppercase tracking-wide mb-0.5">Tasks</p>
-                  <p className="text-xs font-semibold text-amber-400">{pendingTasks.length}</p>
-                </div>
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-2.5 py-2 col-span-2">
-                  <p className="text-[9px] text-white/25 uppercase tracking-wide mb-1">Status</p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`${workflowColor[activeThread.workflow_status]} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
-                      {workflowLabel[activeThread.workflow_status]}
-                    </span>
-                    <span className={`${priorityColor[activeThread.priority]} text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
-                      {activeThread.priority}
-                    </span>
-                    <span className="flex items-center gap-1 text-[9px] text-white/30 bg-white/[0.03] px-1.5 py-0.5 rounded-full border border-white/[0.05]">
-                      {securityIcon[activeThread.security_trust_level]}
-                      <span className="capitalize">{activeThread.security_trust_level}</span>
-                    </span>
-                  </div>
+              {/* Status chip */}
+              <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-2.5 py-2">
+                <p className="text-[9px] text-white/25 uppercase tracking-wide mb-1">Status</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`${workflowColor[activeThread.workflow_status] || workflowColor.informational} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
+                    {workflowLabel[activeThread.workflow_status] || "Info"}
+                  </span>
+                  <span className={`${priorityColor[activeThread.priority] || priorityColor.medium} text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
+                    {activeThread.priority}
+                  </span>
+                  <span className="flex items-center gap-1 text-[9px] text-white/30 bg-white/[0.03] px-1.5 py-0.5 rounded-full border border-white/[0.05]">
+                    {securityIcon[activeThread.security_trust_level] || securityIcon.unverified}
+                    <span className="capitalize">{activeThread.security_trust_level || "unverified"}</span>
+                  </span>
                 </div>
               </div>
             </div>

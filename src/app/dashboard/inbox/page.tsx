@@ -116,8 +116,8 @@ function ThreadRow({ thread }: { thread: Thread }) {
             )}
 
             {/* Security Trust Level Badge */}
-            <div className="flex items-center gap-1 bg-white/5 px-1.5 py-0.5 rounded ml-2" title={`Trust level: ${securityLabel[thread.security_trust_level]}`}>
-              {securityIcon[thread.security_trust_level]}
+            <div className="flex items-center gap-1 bg-white/5 px-1.5 py-0.5 rounded ml-2" title={`Trust level: ${securityLabel[thread.security_trust_level] || "Unverified"}`}>
+              {securityIcon[thread.security_trust_level] || securityIcon.unverified}
             </div>
           </div>
           <div
@@ -143,16 +143,16 @@ function ThreadRow({ thread }: { thread: Thread }) {
 
           {/* Priority badge */}
           <span
-            className={`badge-${thread.priority} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+            className={`badge-${thread.priority || "medium"} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
           >
-            {priorityLabel[thread.priority]}
+            {priorityLabel[thread.priority] || "Medium"}
           </span>
 
           {/* Workflow status */}
           <span
-            className={`${workflowColor[thread.workflow_status]} text-[10px] font-medium px-2 py-0.5 rounded-full`}
+            className={`${workflowColor[thread.workflow_status] || workflowColor.informational} text-[10px] font-medium px-2 py-0.5 rounded-full`}
           >
-            {workflowLabel[thread.workflow_status]}
+            {workflowLabel[thread.workflow_status] || "Info"}
           </span>
 
           {/* Time */}
