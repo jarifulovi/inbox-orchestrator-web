@@ -19,6 +19,8 @@ import {
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/inbox/use-threads";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
+import { connectGoogle } from "@/features/google/google.api";
+import { toast } from "sonner";
 
 const priorityLabel: Record<Priority, string> = {
   high: "High",
@@ -324,9 +326,43 @@ export default function InboxPage() {
     );
   }
 
+  const handleReconnect = async (email?: string) => {
+    try {
+      const res = await connectGoogle(email);
+      if (res?.auth_url) {
+        window.location.href = res.auth_url;
+      } else {
+        toast.error("Failed to get connection URL.");
+      }
+    } catch (err) {
+      console.error("Failed to initiate reconnect:", err);
+      toast.error("Failed to initiate reconnect.");
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto scrollbar-thin p-6">
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Inactive Account Reconnect Banner */}
+      {selectedAccount && !selectedAccount.is_active && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="size-5 shrink-0 text-amber-400" />
+            <div>
+              <p className="text-sm font-semibold">Sync Paused &mdash; Authorization Expired</p>
+              <p className="text-xs text-amber-400/70 mt-0.5">
+                Google access token for <span className="font-medium text-amber-300">{selectedAccount.email}</span> has expired or been revoked. Reconnect to resume sync.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleReconnect(selectedAccount.email)}
+            className="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-colors shrink-0 cursor-pointer"
+          >
+            Reconnect Account
+          </button>
+        </div>
+      )}
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
