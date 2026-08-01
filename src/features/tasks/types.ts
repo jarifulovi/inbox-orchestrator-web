@@ -22,3 +22,17 @@ export type Task = {
   source_thread_subject: string;
   created_at: string;
 };
+
+export type TaskFilters = {
+  priority?: TaskPriority | "all";
+  status?: TaskStatus | "all";
+  intent_label?: IntentLabel | "all";
+  overdue?: boolean;
+};
+
+export type TasksResponse = {
+  tasks: Task[];
+  total_count: number;
+  pending_count: number;
+};
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   CheckSquare,
@@ -24,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { tasks } from "@/features/tasks/data";
 import {
   Task,
   TaskStatus,
@@ -32,6 +31,8 @@ import {
   IntentLabel,
 } from "@/features/tasks/types";
 import { api } from "@/lib/axios";
+import { useAuth } from "@/features/auth/auth-context";
+import { useTasks } from "@/features/tasks/use-tasks";
 
 const statusConfig: Record<
   TaskStatus,
@@ -262,24 +263,59 @@ function TaskCard({ task }: { task: Task }) {
 }
 
 export default function TasksPage() {
+  const { selectedAccount } = useAuth();
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterLabel, setFilterLabel] = useState<IntentLabel | "all">("all");
   const [filterOverdue, setFilterOverdue] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      const matchPriority = filterPriority === "all" || t.priority === filterPriority;
-      const matchStatus = filterStatus === "all" || t.status === filterStatus;
-      const matchLabel = filterLabel === "all" || t.intent_label === filterLabel;
-      const matchOverdue = !filterOverdue || (isOverdue(t.due_date) && t.status === "pending");
-      
-      return matchPriority && matchStatus && matchLabel && matchOverdue;
-    });
-  }, [filterPriority, filterStatus, filterLabel, filterOverdue]);
+  const filters = useMemo(
+    () => ({
+      priority: filterPriority,
+      status: filterStatus,
+      intent_label: filterLabel,
+      overdue: filterOverdue,
+    }),
+    [filterPriority, filterStatus, filterLabel, filterOverdue]
+  );
 
-  const pendingCount = tasks.filter((t) => t.status === "pending").length;
+  const {
+    tasks: fetchedTasks,
+    totalCount,
+    pendingCount,
+    loading: loadingTasks,
+    loadingMore,
+    hasMore,
+    loadMore,
+  } = useTasks(selectedAccount?.id, filters);
+
+  const observerTarget = useRef<HTMLDivElement | null>(null);
+
+  // Setup Intersection Observer for infinite scrolling pagination
+  useEffect(() => {
+    if (!hasMore || loadingTasks || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingTasks, loadingMore, loadMore]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -291,7 +327,7 @@ export default function TasksPage() {
             Tasks
           </h1>
           <p className="text-sm text-white/40 mt-1">
-            {pendingCount} pending · {tasks.length} total tasks
+            {pendingCount} pending · {totalCount} total tasks
           </p>
         </div>
 
@@ -372,10 +408,37 @@ export default function TasksPage() {
       {/* Main Content Area */}
       {viewMode === "list" ? (
         <div className="space-y-2 pb-6">
-          {filteredTasks.length > 0 ? (
-            filteredTasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))
+          {loadingTasks ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="glass-card rounded-xl p-5 animate-pulse flex items-start gap-4">
+                  <div className="size-8 rounded-lg bg-white/10 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-white/10 rounded w-2/3" />
+                    <div className="h-3 bg-white/5 rounded w-1/3" />
+                    <div className="flex gap-2 pt-2">
+                      <div className="h-4 bg-white/10 rounded w-16" />
+                      <div className="h-4 bg-white/10 rounded w-16" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : fetchedTasks.length > 0 ? (
+            <>
+              {fetchedTasks.map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+
+              {/* Sentinel for IntersectionObserver */}
+              <div ref={observerTarget} className="h-4 w-full" />
+
+              {loadingMore && (
+                <div className="flex justify-center py-4">
+                  <div className="size-6 animate-spin rounded-full border-2 border-[#8b7cf8] border-t-transparent" />
+                </div>
+              )}
+            </>
           ) : (
             <div className="glass-card rounded-xl px-6 py-16 text-center">
               <CheckSquare className="size-10 text-white/10 mx-auto mb-3" />
@@ -403,3 +466,4 @@ export default function TasksPage() {
     </div>
   );
 }
+
