@@ -31,6 +31,9 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
         if (filters?.intent_label && filters.intent_label !== "all") {
           queryParams.append("intent_label", filters.intent_label);
         }
+        if (filters?.source && filters.source !== "all") {
+          queryParams.append("source", filters.source);
+        }
         if (filters?.overdue) {
           queryParams.append("overdue", "true");
         }
@@ -58,6 +61,7 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
       filters?.priority,
       filters?.status,
       filters?.intent_label,
+      filters?.source,
       filters?.overdue,
     ]
   );

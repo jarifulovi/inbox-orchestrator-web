@@ -2,6 +2,8 @@ export type TaskStatus = "pending" | "completed" | "dismissed";
 
 export type TaskPriority = "low" | "medium" | "high";
 
+export type TaskSource = "system" | "manual";
+
 export type IntentLabel =
   | "schedule_meeting"
   | "reply_requested"
@@ -13,6 +15,8 @@ export type IntentLabel =
 
 export type Task = {
   id: string;
+  source?: TaskSource;
+  email_fact_id?: string | null;
   title: string;
   priority: TaskPriority;
   status: TaskStatus;
@@ -27,6 +31,7 @@ export type TaskFilters = {
   priority?: TaskPriority | "all";
   status?: TaskStatus | "all";
   intent_label?: IntentLabel | "all";
+  source?: TaskSource | "all";
   overdue?: boolean;
 };
 

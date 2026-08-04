@@ -15,6 +15,10 @@ import {
   List,
   Eye,
   Reply,
+  Trash2,
+  Edit3,
+  Plus,
+  User,
 } from "lucide-react";
 import {
   Dialog,
@@ -29,6 +33,7 @@ import {
   TaskStatus,
   TaskPriority,
   IntentLabel,
+  TaskSource,
 } from "@/features/tasks/types";
 import { api } from "@/lib/axios";
 import { useAuth } from "@/features/auth/auth-context";
@@ -86,27 +91,73 @@ function isOverdue(date: string | null): boolean {
   return diffDays < 0;
 }
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({
+  task,
+  onTaskUpdated,
+}: {
+  task: Task;
+  onTaskUpdated: () => void;
+}) {
   const status = statusConfig[task.status];
-  const StatusIcon = status.icon;
   const overdue = isOverdue(task.due_date);
-  
+
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
   const [localStatus, setLocalStatus] = useState<TaskStatus>(task.status);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit fields state
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
+  const [editIntent, setEditIntent] = useState<IntentLabel>(task.intent_label);
+  const [editDueDate, setEditDueDate] = useState(task.due_date ? task.due_date.slice(0, 10) : "");
 
   const handleResolve = async () => {
     setIsUpdating(true);
     try {
-      await api.post(`/emails/tasks/${task.id}/status`, { status: "completed" });
+      await api.patch(`/emails/tasks/${task.id}`, { status: "completed" });
       setLocalStatus("completed");
+      onTaskUpdated();
     } catch (err) {
       console.error("Failed to update task status:", err);
-      // Fallback for mock/local data demo
       setLocalStatus("completed");
     } finally {
       setIsUpdating(false);
       setResolveModalOpen(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await api.delete(`/emails/tasks/${task.id}`);
+      onTaskUpdated();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    setIsUpdating(true);
+    try {
+      await api.patch(`/emails/tasks/${task.id}`, {
+        title: editTitle,
+        priority: editPriority,
+        intent_label: editIntent,
+        due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
+      });
+      onTaskUpdated();
+      setEditModalOpen(false);
+    } catch (err) {
+      console.error("Failed to update task:", err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -152,7 +203,7 @@ function TaskCard({ task }: { task: Task }) {
                 {task.title}
               </h3>
             </div>
-            
+
             <div className="text-xs text-white/50 mb-3 truncate flex items-center gap-1.5">
               <span className="text-white/30">from:</span>
               <span className="text-white/70 italic">{task.source_thread_subject}</span>
@@ -160,9 +211,20 @@ function TaskCard({ task }: { task: Task }) {
 
             {/* Tags row */}
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Source Badge */}
+              {task.source === "manual" ? (
+                <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+                  <User className="size-3" /> Manual
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[10px] text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full font-medium">
+                  <Sparkles className="size-3" /> System
+                </span>
+              )}
+
               {/* Priority */}
               <span
-                className={`badge-${task.priority} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+                className={`badge-${task.priority.toLowerCase()} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
               >
                 {task.priority}
               </span>
@@ -177,7 +239,7 @@ function TaskCard({ task }: { task: Task }) {
               {/* Intent label */}
               <span className="flex items-center gap-1 text-[10px] text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
                 <Tag className="size-3" />
-                {intentLabels[task.intent_label]}
+                {intentLabels[task.intent_label] || task.intent_label}
               </span>
             </div>
           </div>
@@ -210,20 +272,41 @@ function TaskCard({ task }: { task: Task }) {
               Resolve
             </button>
           )}
-          <Link
-            href={`/dashboard/inbox?threadId=${task.source_thread_id}`}
+
+          <button
+            onClick={() => setEditModalOpen(true)}
             className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
           >
-            <Eye className="size-3.5" />
-            View
-          </Link>
-          <Link
-            href={`/dashboard/inbox/reply/${task.source_thread_id}`}
-            className="px-3 py-1.5 text-[11px] font-medium bg-[#6d5bfa]/10 text-[#8b7cf8] hover:bg-[#6d5bfa]/20 rounded-lg transition-colors flex items-center gap-1.5"
+            <Edit3 className="size-3.5" />
+            Edit
+          </button>
+
+          <button
+            onClick={() => setDeleteModalOpen(true)}
+            className="px-3 py-1.5 text-[11px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors flex items-center gap-1.5"
           >
-            <Reply className="size-3.5" />
-            Reply
-          </Link>
+            <Trash2 className="size-3.5" />
+            Delete
+          </button>
+
+          {task.source_thread_id && (
+            <>
+              <Link
+                href={`/dashboard/inbox?threadId=${task.source_thread_id}`}
+                className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Eye className="size-3.5" />
+                View
+              </Link>
+              <Link
+                href={`/dashboard/inbox/reply/${task.source_thread_id}`}
+                className="px-3 py-1.5 text-[11px] font-medium bg-[#6d5bfa]/10 text-[#8b7cf8] hover:bg-[#6d5bfa]/20 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Reply className="size-3.5" />
+                Reply
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -236,9 +319,7 @@ function TaskCard({ task }: { task: Task }) {
             </div>
             <DialogTitle className="text-lg font-semibold text-white mb-2">Complete Task?</DialogTitle>
             <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
-              Are you sure you want to mark <span className="text-white/90 font-medium">"{task.title}"</span> as completed? This will update the status and remove it from your pending list.
-              <br /><br />
-              <span className="text-[11px] text-white/40 italic">Note: You can turn on auto task resolution from settings.</span>
+              Are you sure you want to mark <span className="text-white/90 font-medium">"{task.title}"</span> as completed?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
@@ -258,6 +339,114 @@ function TaskCard({ task }: { task: Task }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <div className="size-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+              <Trash2 className="size-6 text-red-400" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Delete Task?</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
+              Are you sure you want to delete <span className="text-white/90 font-medium">"{task.title}"</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm font-medium bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50 flex items-center justify-center min-w-28"
+            >
+              {isDeleting ? "Deleting..." : "Yes, Delete"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-md bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Edit Task</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-4">
+              Update task title, priority, intent, or due date.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Title</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1">Priority</label>
+                <select
+                  value={editPriority}
+                  onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1">Intent Label</label>
+                <select
+                  value={editIntent}
+                  onChange={(e) => setEditIntent(e.target.value as IntentLabel)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  {Object.entries(intentLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Due Date</label>
+              <input
+                type="date"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+                className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-3 mt-6">
+            <button
+              onClick={() => setEditModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={isUpdating || !editTitle.trim()}
+              className="px-4 py-2 text-sm font-medium bg-[#6d5bfa] text-white hover:bg-[#5b49f8] rounded-lg transition-colors shadow-lg shadow-[#6d5bfa]/20 disabled:opacity-50"
+            >
+              {isUpdating ? "Saving..." : "Save Changes"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -267,17 +456,30 @@ export default function TasksPage() {
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterLabel, setFilterLabel] = useState<IntentLabel | "all">("all");
+  const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
   const [filterOverdue, setFilterOverdue] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+
+  // Create Task Modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createEmailId, setCreateEmailId] = useState("");
+  const [createPriority, setCreatePriority] = useState<TaskPriority>("medium");
+  const [createIntent, setCreateIntent] = useState<IntentLabel>("other");
+  const [createDueDate, setCreateDueDate] = useState("");
+  const [emailsList, setEmailsList] = useState<Array<{ id: string; subject: string; sender: string }>>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const filters = useMemo(
     () => ({
       priority: filterPriority,
       status: filterStatus,
       intent_label: filterLabel,
+      source: filterSource,
       overdue: filterOverdue,
     }),
-    [filterPriority, filterStatus, filterLabel, filterOverdue]
+    [filterPriority, filterStatus, filterLabel, filterSource, filterOverdue]
   );
 
   const {
@@ -288,9 +490,58 @@ export default function TasksPage() {
     loadingMore,
     hasMore,
     loadMore,
+    refresh,
   } = useTasks(selectedAccount?.id, filters);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
+
+  // Fetch emails list for the manual task creation dropdown
+  const handleOpenCreateModal = async () => {
+    setCreateModalOpen(true);
+    if (!selectedAccount?.id) return;
+    setLoadingEmails(true);
+    try {
+      const res = await api.get(`/emails?account_id=${selectedAccount.id}&limit=50`);
+      const emails = res.data.emails || [];
+      setEmailsList(
+        emails.map((e: { id: string; subject?: string; sender?: string }) => ({
+          id: e.id,
+          subject: e.subject || "(No Subject)",
+          sender: e.sender || "Unknown",
+        }))
+      );
+      if (emails.length > 0) {
+        setCreateEmailId(emails[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch emails for task creation:", err);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!selectedAccount?.id || !createTitle.trim() || !createEmailId) return;
+    setIsCreating(true);
+    try {
+      await api.post(`/emails/tasks?account_id=${selectedAccount.id}`, {
+        title: createTitle.trim(),
+        email_id: createEmailId,
+        account_id: selectedAccount.id,
+        priority: createPriority,
+        intent_label: createIntent,
+        due_date: createDueDate ? new Date(createDueDate).toISOString() : null,
+      });
+      refresh();
+      setCreateModalOpen(false);
+      setCreateTitle("");
+      setCreateDueDate("");
+    } catch (err) {
+      console.error("Failed to create task:", err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   // Setup Intersection Observer for infinite scrolling pagination
   useEffect(() => {
@@ -331,26 +582,37 @@ export default function TasksPage() {
           </p>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center bg-[#161921] rounded-lg p-1 border border-white/10">
+        <div className="flex items-center gap-3">
+          {/* Create Task Button */}
           <button
-            onClick={() => setViewMode("list")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === "list" ? "bg-[#6d5bfa]/20 text-[#8b7cf8]" : "text-white/40 hover:text-white/70"
-            }`}
+            onClick={handleOpenCreateModal}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#6d5bfa] text-white text-sm font-medium hover:bg-[#5b49f8] transition-colors shadow-lg shadow-[#6d5bfa]/20"
           >
-            <List className="size-4" />
-            List
+            <Plus className="size-4" />
+            Create Task
           </button>
-          <button
-            onClick={() => setViewMode("calendar")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === "calendar" ? "bg-[#6d5bfa]/20 text-[#8b7cf8]" : "text-white/40 hover:text-white/70"
-            }`}
-          >
-            <CalendarDays className="size-4" />
-            Timeline
-          </button>
+
+          {/* View Toggle */}
+          <div className="flex items-center bg-[#161921] rounded-lg p-1 border border-white/10">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "list" ? "bg-[#6d5bfa]/20 text-[#8b7cf8]" : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <List className="size-4" />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode("calendar")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === "calendar" ? "bg-[#6d5bfa]/20 text-[#8b7cf8]" : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <CalendarDays className="size-4" />
+              Timeline
+            </button>
+          </div>
         </div>
       </div>
 
@@ -361,6 +623,7 @@ export default function TasksPage() {
           <span className="text-sm font-medium">Filters:</span>
         </div>
 
+        {/* Priority Filter */}
         <select
           value={filterPriority}
           onChange={(e) => setFilterPriority(e.target.value as TaskPriority | "all")}
@@ -372,6 +635,7 @@ export default function TasksPage() {
           <option value="low">Low</option>
         </select>
 
+        {/* Status Filter */}
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}
@@ -383,6 +647,18 @@ export default function TasksPage() {
           <option value="dismissed">Dismissed</option>
         </select>
 
+        {/* Source Filter */}
+        <select
+          value={filterSource}
+          onChange={(e) => setFilterSource(e.target.value as TaskSource | "all")}
+          className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
+        >
+          <option value="all">All Sources</option>
+          <option value="system">System</option>
+          <option value="manual">Manual</option>
+        </select>
+
+        {/* Intent Label Filter */}
         <select
           value={filterLabel}
           onChange={(e) => setFilterLabel(e.target.value as IntentLabel | "all")}
@@ -427,7 +703,7 @@ export default function TasksPage() {
           ) : fetchedTasks.length > 0 ? (
             <>
               {fetchedTasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard key={task.id} task={task} onTaskUpdated={refresh} />
               ))}
 
               {/* Sentinel for IntersectionObserver */}
@@ -463,7 +739,112 @@ export default function TasksPage() {
           </button>
         </div>
       )}
+
+      {/* Create Task Modal */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="sm:max-w-md bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-lg font-semibold text-white mb-1">Create Manual Task</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-4">
+              Add a new actionable item linked to an email in your inbox.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Task Title *</label>
+              <input
+                type="text"
+                placeholder="e.g., Review contract draft"
+                value={createTitle}
+                onChange={(e) => setCreateTitle(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Link Email *</label>
+              {loadingEmails ? (
+                <div className="text-xs text-white/40 py-2">Loading inbox emails...</div>
+              ) : emailsList.length > 0 ? (
+                <select
+                  value={createEmailId}
+                  onChange={(e) => setCreateEmailId(e.target.value)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  {emailsList.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.subject} ({e.sender})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Paste Target Email UUID"
+                  value={createEmailId}
+                  onChange={(e) => setCreateEmailId(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1">Priority</label>
+                <select
+                  value={createPriority}
+                  onChange={(e) => setCreatePriority(e.target.value as TaskPriority)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1">Intent Label</label>
+                <select
+                  value={createIntent}
+                  onChange={(e) => setCreateIntent(e.target.value as IntentLabel)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  {Object.entries(intentLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Due Date</label>
+              <input
+                type="date"
+                value={createDueDate}
+                onChange={(e) => setCreateDueDate(e.target.value)}
+                className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-3 mt-6">
+            <button
+              onClick={() => setCreateModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateTask}
+              disabled={isCreating || !createTitle.trim() || !createEmailId}
+              className="px-4 py-2 text-sm font-medium bg-[#6d5bfa] text-white hover:bg-[#5b49f8] rounded-lg transition-colors shadow-lg shadow-[#6d5bfa]/20 disabled:opacity-50"
+            >
+              {isCreating ? "Creating..." : "Create Task"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
