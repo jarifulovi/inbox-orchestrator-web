@@ -19,6 +19,8 @@ import {
   Edit3,
   Plus,
   User,
+  Search,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -111,6 +113,7 @@ function TaskCard({
 
   // Edit fields state
   const [editTitle, setEditTitle] = useState(task.title);
+  const [editStatus, setEditStatus] = useState<TaskStatus>(task.status);
   const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
   const [editIntent, setEditIntent] = useState<IntentLabel>(task.intent_label);
   const [editDueDate, setEditDueDate] = useState(task.due_date ? task.due_date.slice(0, 10) : "");
@@ -148,10 +151,12 @@ function TaskCard({
     try {
       await api.patch(`/emails/tasks/${task.id}`, {
         title: editTitle,
+        status: editStatus,
         priority: editPriority,
         intent_label: editIntent,
         due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
       });
+      setLocalStatus(editStatus);
       onTaskUpdated();
       setEditModalOpen(false);
     } catch (err) {
@@ -393,6 +398,19 @@ function TaskCard({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className="block text-xs font-medium text-white/70 mb-1">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as TaskStatus)}
+                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="dismissed">Dismissed</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-white/70 mb-1">Priority</label>
                 <select
                   value={editPriority}
@@ -404,19 +422,19 @@ function TaskCard({
                   <option value="low">Low</option>
                 </select>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-medium text-white/70 mb-1">Intent Label</label>
-                <select
-                  value={editIntent}
-                  onChange={(e) => setEditIntent(e.target.value as IntentLabel)}
-                  className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
-                >
-                  {Object.entries(intentLabels).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-white/70 mb-1">Intent Label</label>
+              <select
+                value={editIntent}
+                onChange={(e) => setEditIntent(e.target.value as IntentLabel)}
+                className="w-full bg-[#161921] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+              >
+                {Object.entries(intentLabels).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -471,6 +489,91 @@ export default function TasksPage() {
   const [loadingEmails, setLoadingEmails] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Email Keyword Search & Existing Tasks Inspector state
+  const [emailSearchQuery, setEmailSearchQuery] = useState("");
+  const [existingEmailTasks, setExistingEmailTasks] = useState<Task[]>([]);
+  const [loadingExistingTasks, setLoadingExistingTasks] = useState(false);
+
+  // Search emails by keyword (debounced 300ms, capped to 6 max)
+  useEffect(() => {
+    if (!selectedAccount?.id || !createModalOpen) return;
+    const timer = setTimeout(async () => {
+      setLoadingEmails(true);
+      try {
+        const qParam = emailSearchQuery.trim() ? `&q=${encodeURIComponent(emailSearchQuery.trim())}` : "";
+        const res = await api.get(`/emails?account_id=${selectedAccount.id}&limit=6${qParam}`);
+        const emails = res.data.emails || [];
+        const formatted = emails.slice(0, 6).map((e: { id: string; subject?: string; sender?: string; sender_name?: string }) => ({
+          id: e.id,
+          subject: e.subject || "(No Subject)",
+          sender: e.sender_name || e.sender || "Unknown",
+        }));
+        setEmailsList(formatted);
+        if (formatted.length > 0) {
+          setCreateEmailId((prev) => (prev && formatted.some((f: { id: string }) => f.id === prev) ? prev : formatted[0].id));
+        } else {
+          setCreateEmailId("");
+        }
+      } catch (err) {
+        console.error("Failed to search emails for task creation:", err);
+      } finally {
+        setLoadingEmails(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [emailSearchQuery, selectedAccount?.id, createModalOpen]);
+
+  // Fetch existing tasks whenever selected email changes
+  useEffect(() => {
+    if (!createEmailId || !selectedAccount?.id || !createModalOpen) {
+      setExistingEmailTasks([]);
+      return;
+    }
+    const fetchExistingTasks = async () => {
+      setLoadingExistingTasks(true);
+      try {
+        const res = await api.get<{ tasks: Task[] }>(
+          `/emails/tasks?account_id=${selectedAccount.id}&email_id=${createEmailId}`
+        );
+        setExistingEmailTasks(res.data.tasks || []);
+      } catch (err) {
+        console.error("Failed to fetch existing tasks for selected email:", err);
+      } finally {
+        setLoadingExistingTasks(false);
+      }
+    };
+    fetchExistingTasks();
+  }, [createEmailId, selectedAccount?.id, createModalOpen]);
+
+  const handleOpenCreateModal = async () => {
+    setCreateModalOpen(true);
+    setEmailSearchQuery("");
+    setExistingEmailTasks([]);
+    setCreateEmailId("");
+    setCreateTitle("");
+    setCreateDueDate("");
+    if (!selectedAccount?.id) return;
+    setLoadingEmails(true);
+    try {
+      const res = await api.get(`/emails?account_id=${selectedAccount.id}&limit=6`);
+      const emails = res.data.emails || [];
+      const formatted = emails.slice(0, 6).map((e: { id: string; subject?: string; sender?: string; sender_name?: string }) => ({
+        id: e.id,
+        subject: e.subject || "(No Subject)",
+        sender: e.sender_name || e.sender || "Unknown",
+      }));
+      setEmailsList(formatted);
+      if (formatted.length > 0) {
+        setCreateEmailId(formatted[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch emails for task creation:", err);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
   const filters = useMemo(
     () => ({
       priority: filterPriority,
@@ -494,31 +597,6 @@ export default function TasksPage() {
   } = useTasks(selectedAccount?.id, filters);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
-
-  // Fetch emails list for the manual task creation dropdown
-  const handleOpenCreateModal = async () => {
-    setCreateModalOpen(true);
-    if (!selectedAccount?.id) return;
-    setLoadingEmails(true);
-    try {
-      const res = await api.get(`/emails?account_id=${selectedAccount.id}&limit=50`);
-      const emails = res.data.emails || [];
-      setEmailsList(
-        emails.map((e: { id: string; subject?: string; sender?: string }) => ({
-          id: e.id,
-          subject: e.subject || "(No Subject)",
-          sender: e.sender || "Unknown",
-        }))
-      );
-      if (emails.length > 0) {
-        setCreateEmailId(emails[0].id);
-      }
-    } catch (err) {
-      console.error("Failed to fetch emails for task creation:", err);
-    } finally {
-      setLoadingEmails(false);
-    }
-  };
 
   const handleCreateTask = async () => {
     if (!selectedAccount?.id || !createTitle.trim() || !createEmailId) return;
@@ -762,10 +840,26 @@ export default function TasksPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-white/70 mb-1">Link Email *</label>
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-white/70">Link Email *</label>
+              
+              {/* Email Keyword Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 size-4 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Search emails by keyword, subject, or sender..."
+                  value={emailSearchQuery}
+                  onChange={(e) => setEmailSearchQuery(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                />
+              </div>
+
+              {/* Email Options List / Selector */}
               {loadingEmails ? (
-                <div className="text-xs text-white/40 py-2">Loading inbox emails...</div>
+                <div className="text-xs text-white/40 py-2 flex items-center gap-2">
+                  <Loader2 className="size-3.5 animate-spin text-[#6d5bfa]" /> Searching matching emails...
+                </div>
               ) : emailsList.length > 0 ? (
                 <select
                   value={createEmailId}
@@ -774,7 +868,7 @@ export default function TasksPage() {
                 >
                   {emailsList.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.subject} ({e.sender})
+                      {e.subject} — {e.sender}
                     </option>
                   ))}
                 </select>
@@ -786,6 +880,48 @@ export default function TasksPage() {
                   onChange={(e) => setCreateEmailId(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
                 />
+              )}
+
+              {/* Existing Tasks Inspector Card for Selected Email */}
+              {createEmailId && (
+                <div className="mt-3 p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-white/80 flex items-center gap-1.5">
+                      <CheckSquare className="size-3.5 text-[#6d5bfa]" /> Existing Tasks on Selected Email
+                    </span>
+                    {loadingExistingTasks && <Loader2 className="size-3 animate-spin text-white/40" />}
+                  </div>
+
+                  {loadingExistingTasks ? (
+                    <div className="text-[11px] text-white/40 py-1 flex items-center gap-1.5">
+                      <Loader2 className="size-3 animate-spin text-[#6d5bfa]" /> Fetching email tasks...
+                    </div>
+                  ) : existingEmailTasks.length > 0 ? (
+                    <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                      {existingEmailTasks.map((t) => (
+                        <div
+                          key={t.id}
+                          className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5 text-xs border border-white/5"
+                        >
+                          <span className="truncate font-medium text-white/90 max-w-[210px]">{t.title}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase ${
+                              t.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                              t.status === 'dismissed' ? 'bg-white/10 text-white/40' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {t.status}
+                            </span>
+                            <span className="text-[9px] text-white/50 uppercase">{t.priority}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-white/40 italic py-0.5">
+                      No existing tasks currently linked to this email.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
