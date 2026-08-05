@@ -21,12 +21,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import {
-  DUMMY_THREADS,
-  DUMMY_THREAD_DETAILS,
-  ThreadEmail,
-  EmailFact,
-} from "@/features/threads/data";
+import { useThreads } from "@/features/inbox/use-threads";
+import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/inbox/use-thread-details";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
 import { Task } from "@/features/tasks/types";
 
@@ -52,14 +48,16 @@ function formatFullDate(ts: string) {
   });
 }
 
-function getInitial(name: string) {
-  return name?.trim()?.[0]?.toUpperCase() ?? "?";
+function getInitial(name?: string) {
+  if (!name || !name.trim()) return "?";
+  return name.trim()[0].toUpperCase();
 }
 
-function getAvatarColor(seed: string) {
+function getAvatarColor(seed?: string) {
+  const safeSeed = seed || "default";
   const palette = ["#6d5bfa", "#46d3e5", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6"];
   let h = 0;
-  for (let i = 0; i < seed.length; i++) h = seed.charCodeAt(i) + ((h << 5) - h);
+  for (let i = 0; i < safeSeed.length; i++) h = safeSeed.charCodeAt(i) + ((h << 5) - h);
   return palette[Math.abs(h) % palette.length];
 }
 
@@ -227,10 +225,10 @@ function EmailCard({
       {isExpanded && (
         <div className="px-4 pb-4 pt-0">
           {/* Recipients bar */}
-          {email.recipients.length > 0 && (
+          {(email.recipient_to || email.recipients || []).length > 0 && (
             <div className="text-xs text-white/30 mb-3 flex items-center gap-1.5 flex-wrap">
               <Users className="size-3 shrink-0" />
-              <span>To: {email.recipients.join(", ")}</span>
+              <span>To: {(email.recipient_to || email.recipients || []).join(", ")}</span>
             </div>
           )}
 
@@ -240,12 +238,12 @@ function EmailCard({
           </div>
 
           {/* Inline facts (tasks/commitments only) */}
-          {email.email_facts.filter(f => f.fact_type === "task" || f.fact_type === "commitment").length > 0 && (
+          {(email.email_facts || []).filter(f => f.fact_type === "task" || f.fact_type === "commitment").length > 0 && (
             <div className="mt-4 space-y-2">
               <div className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-2">
                 Extracted from this email
               </div>
-              {email.email_facts
+              {(email.email_facts || [])
                 .filter(f => f.fact_type === "task" || f.fact_type === "commitment")
                 .map(fact => (
                   <div
@@ -313,32 +311,22 @@ function TaskItem({ task }: { task: Task }) {
 export default function ThreadsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { selectedAccount } = useAuth();
 
   const activeThreadId = params?.threadId as string | undefined;
   const targetEmailId = searchParams?.get("email") ?? null;
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [summaryOpen, setSummaryOpen] = useState(true);
 
-  // Thread detail from dummy data
-  const threadDetail = activeThreadId ? DUMMY_THREAD_DETAILS[activeThreadId] ?? null : null;
+  // Real thread detail for middle & right panels
+  const { threadDetail, loading: loadingDetail } = useThreadDetails(
+    selectedAccount?.id,
+    activeThreadId
+  );
+
   const activeThread = threadDetail?.thread ?? null;
   const emails = threadDetail?.emails ?? [];
-
-  // Filtered thread list for left panel
-  const filteredThreads = useMemo(() => {
-    if (!searchQuery.trim()) return DUMMY_THREADS;
-    const q = searchQuery.toLowerCase();
-    return DUMMY_THREADS.filter(
-      t =>
-        t.subject.toLowerCase().includes(q) ||
-        t.sender_name.toLowerCase().includes(q) ||
-        t.sender_email.toLowerCase().includes(q)
-    );
-  }, [searchQuery]);
 
   // Auto-expand the last email or the targeted one on thread load
   useEffect(() => {
@@ -350,7 +338,7 @@ export default function ThreadsPage() {
       defaultExpanded.add(emails[emails.length - 1].id);
     }
     setExpandedEmails(defaultExpanded);
-  }, [activeThreadId, targetEmailId]);
+  }, [activeThreadId, targetEmailId, emails]);
 
   // Scroll-to-element when targetEmailId changes
   useEffect(() => {
@@ -361,7 +349,7 @@ export default function ThreadsPage() {
     }
   }, [targetEmailId, activeThreadId]);
 
-  // Filter pending tasks from the dedicated tasks table data structure
+  // Filter pending tasks from active thread details
   const pendingTasks = useMemo(() => {
     const allTasks = threadDetail?.tasks ?? [];
     return allTasks.filter(t => t.status === "pending");
@@ -374,10 +362,6 @@ export default function ThreadsPage() {
       else next.add(id);
       return next;
     });
-  }
-
-  function selectThread(id: string) {
-    router.push(`/dashboard/threads/${id}`);
   }
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -394,50 +378,18 @@ export default function ThreadsPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-56px)] w-full flex overflow-hidden bg-[#0e1117]">
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* LEFT PANEL — Thread list                                           */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="w-[280px] shrink-0 border-r border-white/[0.06] flex flex-col h-full">
-        {/* Search bar */}
-        <div className="px-3 py-3 border-b border-white/[0.06]">
-          <div className="relative">
-            <Search className="size-3.5 text-white/25 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search threads..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-2 text-xs text-white/70 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/40"
-            />
-          </div>
-        </div>
-
-        {/* Thread list scroll */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2 space-y-0.5">
-          {filteredThreads.length === 0 ? (
-            <div className="text-center py-10">
-              <Mail className="size-8 text-white/10 mx-auto mb-2" />
-              <p className="text-xs text-white/25">No threads found</p>
-            </div>
-          ) : (
-            filteredThreads.map(t => (
-              <ThreadListItem
-                key={t.id}
-                thread={t}
-                isActive={t.id === activeThreadId}
-                onClick={() => selectThread(t.id)}
-              />
-            ))
-          )}
-        </div>
-      </div>
+    <>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MIDDLE PANEL — Email viewer                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 flex flex-col h-full border-r border-white/[0.06]">
-        {activeThread ? (
+        {loadingDetail ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-6">
+            <div className="size-8 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+            <span className="text-white/40 text-xs">Loading thread details...</span>
+          </div>
+        ) : activeThread ? (
           <>
             {/* Thread header */}
             <div className="px-5 py-3.5 border-b border-white/[0.06] shrink-0">
@@ -503,13 +455,13 @@ export default function ThreadsPage() {
               <div className="flex items-start gap-2.5">
                 <div
                   className="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                  style={{ background: getAvatarColor(activeThread.sender_email) }}
+                  style={{ background: getAvatarColor(activeThread.sender_email || emails[0]?.sender || "") }}
                 >
-                  {getInitial(activeThread.sender_name)}
+                  {getInitial(activeThread.sender_name || emails[0]?.sender_name || "")}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white">{activeThread.sender_name}</p>
-                  <p className="text-[10px] text-white/30 truncate">{activeThread.sender_email}</p>
+                  <p className="text-xs font-semibold text-white">{activeThread.sender_name || emails[0]?.sender_name || "Unknown"}</p>
+                  <p className="text-[10px] text-white/30 truncate">{activeThread.sender_email || emails[0]?.sender || ""}</p>
                 </div>
               </div>
 
@@ -600,6 +552,6 @@ export default function ThreadsPage() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
