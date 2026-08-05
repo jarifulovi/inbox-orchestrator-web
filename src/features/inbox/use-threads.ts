@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/axios";
 import { Thread } from "./types";
 
-export function useThreads(accountId: string | undefined) {
+export function useThreads(
+  accountId: string | undefined,
+  filters?: { status?: string; priority?: string; q?: string }
+) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -12,12 +15,21 @@ export function useThreads(accountId: string | undefined) {
   const LIMIT = 20;
 
   const fetchThreads = useCallback(
-    async (currentOffset: number, append: boolean) => {
+    async (currentOffset: number, append: boolean, signal?: AbortSignal) => {
       if (!accountId) return;
       try {
-        const res = await api.get<{ threads: Thread[] }>(
-          `/emails/threads?account_id=${accountId}&limit=${LIMIT}&offset=${currentOffset}`
-        );
+        let url = `/emails/threads?account_id=${accountId}&limit=${LIMIT}&offset=${currentOffset}`;
+        if (filters?.status && filters.status !== "all") {
+          url += `&workflow_status=${encodeURIComponent(filters.status)}`;
+        }
+        if (filters?.priority && filters.priority !== "all") {
+          url += `&priority=${encodeURIComponent(filters.priority)}`;
+        }
+        if (filters?.q && filters.q.trim()) {
+          url += `&q=${encodeURIComponent(filters.q.trim())}`;
+        }
+
+        const res = await api.get<{ threads: Thread[] }>(url, { signal });
         const newThreads = res.data.threads || [];
 
         if (append) {
@@ -28,16 +40,23 @@ export function useThreads(accountId: string | undefined) {
 
         // If returned threads count is less than the limit, we hit the end of the inbox
         setHasMore(newThreads.length === LIMIT);
-      } catch (err) {
+      } catch (err: unknown) {
+        if (
+          (err as { name?: string })?.name === "CanceledError" ||
+          (err as { name?: string })?.name === "AbortError"
+        ) {
+          return;
+        }
         console.error("Failed to fetch threads:", err);
       }
     },
-    [accountId]
+    [accountId, filters?.status, filters?.priority, filters?.q]
   );
 
-  // Initial load or account switch
+  // Initial load or account/filter switch with AbortController cancellation
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
     setLoading(true);
     setOffset(0);
     setHasMore(true);
@@ -48,7 +67,7 @@ export function useThreads(accountId: string | undefined) {
         setLoading(false);
         return;
       }
-      await fetchThreads(0, false);
+      await fetchThreads(0, false, controller.signal);
       if (mounted) setLoading(false);
     }
 
@@ -56,6 +75,7 @@ export function useThreads(accountId: string | undefined) {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
   }, [accountId, fetchThreads]);
 

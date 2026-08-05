@@ -208,7 +208,29 @@ function ThreadRow({ thread }: { thread: Thread }) {
 export default function InboxPage() {
   const { selectedAccount } = useAuth();
   
-  // Consume the paginated threads state and pagination controllers
+  const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
+  const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  // Debounce search query to stop intermediate requests on rapid typing/erasing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const threadFilters = useMemo(
+    () => ({
+      status: filterStatus,
+      priority: filterPriority,
+      q: debouncedSearchQuery,
+    }),
+    [filterStatus, filterPriority, debouncedSearchQuery]
+  );
+
+  // Consume the paginated threads state and pagination controllers with filters
   const {
     threads,
     loading: loadingThreads,
@@ -217,11 +239,7 @@ export default function InboxPage() {
     loadMore,
     syncing,
     syncInbox,
-  } = useThreads(selectedAccount?.id);
-
-  const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
-  const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  } = useThreads(selectedAccount?.id, threadFilters);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -250,21 +268,6 @@ export default function InboxPage() {
     };
   }, [hasMore, loadingThreads, loadingMore, loadMore]);
 
-  const filteredThreads = useMemo(() => {
-    return threads.filter((t) => {
-      const matchStatus = filterStatus === "all" || t.workflow_status === filterStatus;
-      const matchPriority = filterPriority === "all" || t.priority === filterPriority;
-      
-      const query = searchQuery.toLowerCase();
-      const matchSearch = query === "" || 
-        t.subject.toLowerCase().includes(query) ||
-        t.sender_name.toLowerCase().includes(query) ||
-        t.sender_email.toLowerCase().includes(query);
-
-      return matchStatus && matchPriority && matchSearch;
-    });
-  }, [threads, filterStatus, filterPriority, searchQuery]);
-
   const unreadCount = useMemo(() => threads.filter((t) => t.unread).length, [threads]);
 
   if (!selectedAccount) {
@@ -282,45 +285,6 @@ export default function InboxPage() {
           >
             Go to Settings
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (loadingThreads) {
-    return (
-      <div className="h-64 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-8 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
-          <span className="text-white/40 text-sm">Orchestrating inbox...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (threads.length === 0) {
-    return (
-      <div className="max-w-md mx-auto py-16 text-center space-y-4">
-        <Mail className="size-16 text-[#8b7cf8]/20 mx-auto animate-bounce" />
-        <h2 className="text-xl font-bold text-white">No emails ingested</h2>
-        <p className="text-sm text-white/40 leading-relaxed">
-          No emails have been ingested yet for {selectedAccount.email}. Click below to perform a hard sync to fetch emails.
-        </p>
-        <div className="pt-2">
-          <button
-            onClick={syncInbox}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#6d5bfa] hover:bg-[#5b4ae3] disabled:opacity-50 text-sm font-semibold transition-colors shadow-lg shadow-[#6d5bfa]/20 cursor-pointer text-white"
-          >
-            {syncing ? (
-              <>
-                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 inline-block" />
-                Syncing...
-              </>
-            ) : (
-              "Sync Inbox"
-            )}
-          </button>
         </div>
       </div>
     );
@@ -420,14 +384,21 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {/* Thread list - made scrollable horizontally for smaller viewports */}
+      {/* Thread list */}
       <div className="overflow-x-auto pb-4 scrollbar-thin">
         <div className="min-w-[800px] space-y-2">
-          {filteredThreads.map((thread) => (
-            <ThreadRow key={thread.id} thread={thread} />
-          ))}
-
-          {filteredThreads.length === 0 && (
+          {loadingThreads ? (
+            <div className="h-48 flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <div className="size-6 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+                <span className="text-white/40 text-sm">Searching threads...</span>
+              </div>
+            </div>
+          ) : threads.length > 0 ? (
+            threads.map((thread) => (
+              <ThreadRow key={thread.id} thread={thread} />
+            ))
+          ) : (
             <div className="glass-card rounded-xl px-6 py-16 text-center">
               <Mail className="size-10 text-white/10 mx-auto mb-3" />
               <p className="text-white/30 text-sm">
@@ -437,7 +408,7 @@ export default function InboxPage() {
           )}
 
           {/* Infinite Scroll Sentinel & Loader */}
-          {hasMore && (
+          {!loadingThreads && hasMore && (
             <div ref={observerTarget} className="h-16 flex items-center justify-center pt-4">
               {loadingMore && (
                 <div className="flex items-center gap-2">
