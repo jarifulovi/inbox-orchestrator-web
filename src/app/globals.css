@@ -193,3 +193,46 @@
   0%, 100% { opacity: 0.2; }
   50% { opacity: 0.35; }
 }
+
+/* Generic Email Content View Styling */
+.email-content-view {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  line-height: 1.625 !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Reset inline email styles for design consistency */
+.email-content-view * {
+  background-color: transparent !important;
+  color: inherit !important;
+  font-family: inherit !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Styled links */
+.email-content-view a {
+  color: #8b7cf8 !important;
+  text-decoration: underline !important;
+}
+
+/* Styled blockquotes & quotes */
+.email-content-view blockquote {
+  border-left: 2px solid rgba(109, 91, 250, 0.4) !important;
+  padding-left: 0.75rem !important;
+  margin: 0.5rem 0 !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Hide complex UI elements */
+.email-content-view img,
+.email-content-view form,
+.email-content-view input,
+.email-content-view button,
+.email-content-view script,
+.email-content-view iframe {
+  display: none !important;
+}

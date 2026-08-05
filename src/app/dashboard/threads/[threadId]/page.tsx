@@ -25,6 +25,7 @@ import { useThreads } from "@/features/inbox/use-threads";
 import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/inbox/use-thread-details";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
 import { Task } from "@/features/tasks/types";
+import { EmailContentView } from "@/components/common/email-content-view";
 
 // ─── Shared Formatters & Lookups ────────────────────────────────────────────
 
@@ -233,9 +234,7 @@ function EmailCard({
           )}
 
           {/* Body */}
-          <div className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap border-t border-white/[0.05] pt-3">
-            {email.body}
-          </div>
+          <EmailContentView content={email.body} />
 
           {/* Inline facts (tasks/commitments only) */}
           {(email.email_facts || []).filter(f => f.fact_type === "task" || f.fact_type === "commitment").length > 0 && (
