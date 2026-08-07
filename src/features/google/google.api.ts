@@ -5,5 +5,6 @@ export async function connectGoogle(loginHint?: string) {
     ? `/auth/google/connect?login_hint=${encodeURIComponent(loginHint)}`
     : "/auth/google/connect";
   const res = await api.get(url);
-  return res.data as { auth_url: string };
+  const data = res.data || {};
+  return { auth_url: data.auth_url || data.url || "" };
 }
