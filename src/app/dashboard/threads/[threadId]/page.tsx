@@ -20,6 +20,7 @@ import {
   ListTodo,
   ArrowLeft,
   Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import {
   Dialog,
@@ -346,9 +347,11 @@ export default function ThreadsPage() {
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [summaryOpen, setSummaryOpen] = useState(true);
 
-  // Archive modal states
+  // Archive & Unarchive modal states
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [unarchiveModalOpen, setUnarchiveModalOpen] = useState(false);
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   // Real thread detail for middle & right panels
   const { threadDetail, loading: loadingDetail, refresh } = useThreadDetails(
@@ -426,6 +429,27 @@ export default function ThreadsPage() {
     }
   };
 
+  const handleUnarchiveThread = async () => {
+    if (!activeThreadId || !selectedAccount?.id) return;
+    setIsUnarchiving(true);
+    try {
+      const res = await api.patch<{ status: string; thread: { workflow_status: string } }>(
+        `/emails/threads/${activeThreadId}/status?account_id=${selectedAccount.id}`,
+        { workflow_status: "unarchive" }
+      );
+      const newStatus = res.data?.thread?.workflow_status || "active";
+      const label = workflowLabel[newStatus as WorkflowStatus] || newStatus;
+      toast.success(`Thread unarchived to '${label}'`);
+      setUnarchiveModalOpen(false);
+      refresh();
+    } catch (err) {
+      console.error("Failed to unarchive thread:", err);
+      toast.error("Failed to unarchive thread");
+    } finally {
+      setIsUnarchiving(false);
+    }
+  };
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   if (!selectedAccount) {
@@ -438,6 +462,8 @@ export default function ThreadsPage() {
       </div>
     );
   }
+
+  const isThreadArchived = activeThread?.workflow_status === "archived";
 
   return (
     <>
@@ -514,16 +540,27 @@ export default function ThreadsPage() {
                   </div>
                 </div>
 
-                {/* Header Action: Archive Thread Button */}
+                {/* Header Action: Dynamic Archive / Unarchive Thread Button */}
                 <div className="shrink-0 pt-0.5">
-                  <button
-                    onClick={() => setArchiveModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
-                    title="Archive thread"
-                  >
-                    <Archive className="size-3.5 text-zinc-400" />
-                    <span>Archive</span>
-                  </button>
+                  {isThreadArchived ? (
+                    <button
+                      onClick={() => setUnarchiveModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-white border border-[#6d5bfa]/40 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
+                      title="Unarchive thread"
+                    >
+                      <ArchiveRestore className="size-3.5 text-[#8b7cf8]" />
+                      <span>Unarchive</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setArchiveModalOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
+                      title="Archive thread"
+                    >
+                      <Archive className="size-3.5 text-zinc-400" />
+                      <span>Archive</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -693,6 +730,36 @@ export default function ThreadsPage() {
               className="px-4 py-2 text-sm font-medium bg-zinc-700 text-white hover:bg-zinc-600 rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center min-w-28"
             >
               {isArchiving ? "Archiving..." : "Yes, Archive"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Unarchive Confirmation Modal ──────────────────────────────────── */}
+      <Dialog open={unarchiveModalOpen} onOpenChange={setUnarchiveModalOpen}>
+        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <div className="size-12 rounded-full bg-[#6d5bfa]/10 border border-[#6d5bfa]/20 flex items-center justify-center mb-4">
+              <ArchiveRestore className="size-6 text-[#8b7cf8]" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Unarchive Thread?</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
+              Are you sure you want to unarchive <span className="text-white/90 font-medium">"{activeThread?.subject}"</span>? The thread will be restored to active inbox queues and dynamically categorized.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
+            <button
+              onClick={() => setUnarchiveModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUnarchiveThread}
+              disabled={isUnarchiving}
+              className="px-4 py-2 text-sm font-medium bg-[#6d5bfa] text-white hover:bg-[#5b49f8] rounded-lg transition-colors shadow-lg shadow-[#6d5bfa]/20 disabled:opacity-50 flex items-center justify-center min-w-28"
+            >
+              {isUnarchiving ? "Unarchiving..." : "Yes, Unarchive"}
             </button>
           </DialogFooter>
         </DialogContent>
