@@ -19,13 +19,24 @@ import {
   AlertCircle,
   ListTodo,
   ArrowLeft,
+  Archive,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/inbox/use-threads";
 import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/inbox/use-thread-details";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
 import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/components/common/email-content-view";
+import { api } from "@/lib/axios";
+import { toast } from "sonner";
 
 // ─── Shared Formatters & Lookups ────────────────────────────────────────────
 
@@ -47,6 +58,22 @@ function formatFullDate(ts: string) {
     month: "short", day: "numeric", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
+}
+
+function formatDateRange(emails: ThreadEmail[]) {
+  if (!emails || emails.length === 0) return "";
+  const dates = emails.map(e => e.received_at ? new Date(e.received_at).getTime() : 0).filter(Boolean);
+  if (dates.length === 0) return "";
+  const minDate = new Date(Math.min(...dates));
+  const maxDate = new Date(Math.max(...dates));
+
+  const minStr = minDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const maxStr = maxDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  if (minDate.toDateString() === maxDate.toDateString()) {
+    return maxStr;
+  }
+  return `${minStr} – ${maxStr}`;
 }
 
 function getInitial(name?: string) {
@@ -310,6 +337,7 @@ function TaskItem({ task }: { task: Task }) {
 export default function ThreadsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { selectedAccount } = useAuth();
 
   const activeThreadId = params?.threadId as string | undefined;
@@ -318,14 +346,31 @@ export default function ThreadsPage() {
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
   const [summaryOpen, setSummaryOpen] = useState(true);
 
+  // Archive modal states
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+
   // Real thread detail for middle & right panels
-  const { threadDetail, loading: loadingDetail } = useThreadDetails(
+  const { threadDetail, loading: loadingDetail, refresh } = useThreadDetails(
     selectedAccount?.id,
     activeThreadId
   );
 
   const activeThread = threadDetail?.thread ?? null;
   const emails = threadDetail?.emails ?? [];
+
+  // Participant profiles extraction
+  const uniqueParticipants = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of emails) {
+      const name = e.sender_name || (e.sender ? e.sender.split("<")[0].trim() : "Unknown");
+      const email = e.sender || "";
+      if (email && !map.has(email)) {
+        map.set(email, name);
+      }
+    }
+    return Array.from(map.entries()).map(([email, name]) => ({ email, name }));
+  }, [emails]);
 
   // Auto-expand the last email or the targeted one on thread load
   useEffect(() => {
@@ -363,6 +408,24 @@ export default function ThreadsPage() {
     });
   }
 
+  const handleArchiveThread = async () => {
+    if (!activeThreadId || !selectedAccount?.id) return;
+    setIsArchiving(true);
+    try {
+      await api.patch(`/emails/threads/${activeThreadId}/status?account_id=${selectedAccount.id}`, {
+        workflow_status: "archived"
+      });
+      toast.success("Thread archived successfully");
+      setArchiveModalOpen(false);
+      refresh();
+    } catch (err) {
+      console.error("Failed to archive thread:", err);
+      toast.error("Failed to archive thread");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   if (!selectedAccount) {
@@ -378,7 +441,6 @@ export default function ThreadsPage() {
 
   return (
     <>
-
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MIDDLE PANEL — Email viewer                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -391,23 +453,77 @@ export default function ThreadsPage() {
         ) : activeThread ? (
           <>
             {/* Thread header */}
-            <div className="px-5 py-3.5 border-b border-white/[0.06] shrink-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-white truncate">{activeThread.subject}</h2>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-xs text-white/40">{emails.length} messages</span>
-                    <span className="text-white/20">·</span>
-                    <span className={`${workflowColor[activeThread.workflow_status] || workflowColor.informational} text-[10px] font-medium px-1.5 py-0.5 rounded-full`}>
-                      {workflowLabel[activeThread.workflow_status] || "Info"}
-                    </span>
-                    <span className={`${priorityColor[activeThread.priority] || priorityColor.medium} text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
-                      {activeThread.priority}
-                    </span>
+            <div className="px-5 py-3 border-b border-white/[0.06] shrink-0 bg-white/[0.01]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-semibold text-white truncate leading-snug">{activeThread.subject}</h2>
+
+                  {/* Subheader info: messages count, date span, participants, pending tasks */}
+                  <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-white/50">
+                    {/* Message count */}
+                    <div className="flex items-center gap-1 text-white/60">
+                      <Mail className="size-3.5 text-white/40" />
+                      <span>{emails.length} {emails.length === 1 ? "message" : "messages"}</span>
+                    </div>
+
+                    {/* Date range */}
+                    {formatDateRange(emails) && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <div className="flex items-center gap-1 text-white/40">
+                          <Clock className="size-3 text-white/30" />
+                          <span>{formatDateRange(emails)}</span>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Participants */}
+                    {uniqueParticipants.length > 0 && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex -space-x-1.5 overflow-hidden">
+                            {uniqueParticipants.slice(0, 3).map((p, idx) => (
+                              <div
+                                key={p.email || idx}
+                                className="size-4.5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ring-1 ring-[#161921]"
+                                style={{ background: getAvatarColor(p.email) }}
+                                title={p.name}
+                              >
+                                {getInitial(p.name)}
+                              </div>
+                            ))}
+                          </div>
+                          <span className="text-white/60 truncate max-w-[200px]">
+                            {uniqueParticipants.map(p => p.name).join(", ")}
+                          </span>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Pending tasks badge */}
+                    {pendingTasks.length > 0 && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full font-medium">
+                          <CheckSquare className="size-3" />
+                          {pendingTasks.length} {pendingTasks.length === 1 ? "task" : "tasks"}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="shrink-0 flex items-center gap-1.5" title={`Trust: ${activeThread.security_trust_level}`}>
-                  {securityIcon[activeThread.security_trust_level] || securityIcon.unverified}
+
+                {/* Header Action: Archive Thread Button */}
+                <div className="shrink-0 pt-0.5">
+                  <button
+                    onClick={() => setArchiveModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
+                    title="Archive thread"
+                  >
+                    <Archive className="size-3.5 text-zinc-400" />
+                    <span>Archive</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -551,6 +667,36 @@ export default function ThreadsPage() {
           </div>
         )}
       </div>
+
+      {/* ─── Archive Confirmation Modal ────────────────────────────────────── */}
+      <Dialog open={archiveModalOpen} onOpenChange={setArchiveModalOpen}>
+        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <div className="size-12 rounded-full bg-zinc-500/10 border border-zinc-500/20 flex items-center justify-center mb-4">
+              <Archive className="size-6 text-zinc-400" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">Archive Thread?</DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
+              Are you sure you want to archive <span className="text-white/90 font-medium">"{activeThread?.subject}"</span>? Archived threads are hidden from active inbox views and ignored for background re-evaluations.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
+            <button
+              onClick={() => setArchiveModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleArchiveThread}
+              disabled={isArchiving}
+              className="px-4 py-2 text-sm font-medium bg-zinc-700 text-white hover:bg-zinc-600 rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center min-w-28"
+            >
+              {isArchiving ? "Archiving..." : "Yes, Archive"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

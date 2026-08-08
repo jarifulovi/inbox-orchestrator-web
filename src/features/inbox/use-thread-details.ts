@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/axios";
 import { Thread } from "./types";
 import { Task } from "@/features/tasks/types";
@@ -54,6 +54,23 @@ export function useThreadDetails(
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchDetails = useCallback(async () => {
+    if (!accountId || !threadId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<ThreadDetail>(
+        `/emails/threads/${threadId}?account_id=${accountId}`
+      );
+      setData(res.data);
+    } catch (err: unknown) {
+      console.error(`Failed to fetch details for thread ${threadId}:`, err);
+      setError("Failed to load thread details.");
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, threadId]);
+
   useEffect(() => {
     if (!accountId || !threadId) {
       setData(null);
@@ -64,7 +81,7 @@ export function useThreadDetails(
     let mounted = true;
     const controller = new AbortController();
 
-    async function fetchDetails() {
+    async function initialFetch() {
       setLoading(true);
       setError(null);
       try {
@@ -93,7 +110,7 @@ export function useThreadDetails(
       }
     }
 
-    fetchDetails();
+    initialFetch();
 
     return () => {
       mounted = false;
@@ -105,5 +122,6 @@ export function useThreadDetails(
     threadDetail: data,
     loading,
     error,
+    refresh: fetchDetails,
   };
 }
