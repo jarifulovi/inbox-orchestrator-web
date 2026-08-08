@@ -38,57 +38,15 @@ import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/components/common/email-content-view";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
+import {
+  getInitial,
+  getAvatarColor,
+  formatTime,
+  formatFullDate,
+  formatDateRange,
+} from "@/features/inbox/utils";
 
 // ─── Shared Formatters & Lookups ────────────────────────────────────────────
-
-function formatTime(ts: string) {
-  const date = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffH = Math.floor(diffMs / 3_600_000);
-  if (diffH < 1) return "Just now";
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD === 1) return "Yesterday";
-  if (diffD < 7) return `${diffD}d ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatFullDate(ts: string) {
-  return new Date(ts).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-function formatDateRange(emails: ThreadEmail[]) {
-  if (!emails || emails.length === 0) return "";
-  const dates = emails.map(e => e.received_at ? new Date(e.received_at).getTime() : 0).filter(Boolean);
-  if (dates.length === 0) return "";
-  const minDate = new Date(Math.min(...dates));
-  const maxDate = new Date(Math.max(...dates));
-
-  const minStr = minDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const maxStr = maxDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
-  if (minDate.toDateString() === maxDate.toDateString()) {
-    return maxStr;
-  }
-  return `${minStr} – ${maxStr}`;
-}
-
-function getInitial(name?: string) {
-  if (!name || !name.trim()) return "?";
-  return name.trim()[0].toUpperCase();
-}
-
-function getAvatarColor(seed?: string) {
-  const safeSeed = seed || "default";
-  const palette = ["#6d5bfa", "#46d3e5", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6"];
-  let h = 0;
-  for (let i = 0; i < safeSeed.length; i++) h = safeSeed.charCodeAt(i) + ((h << 5) - h);
-  return palette[Math.abs(h) % palette.length];
-}
 
 const workflowLabel: Record<WorkflowStatus, string> = {
   needs_action: "Needs Action",
@@ -126,72 +84,6 @@ const factTypeColor: Record<EmailFact["fact_type"], string> = {
   question: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20",
   fact: "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20",
 };
-
-// ─── LEFT PANEL: Thread List Item ───────────────────────────────────────────
-
-function ThreadListItem({
-  thread,
-  isActive,
-  onClick,
-}: {
-  thread: Thread;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const avatarColor = getAvatarColor(thread.sender_email);
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-150 group border ${
-        isActive
-          ? "bg-[#6d5bfa]/10 border-[#6d5bfa]/30"
-          : "border-transparent hover:bg-white/[0.03] hover:border-white/[0.06]"
-      }`}
-    >
-      <div className="flex items-start gap-2.5">
-        {/* Avatar */}
-        <div
-          className="size-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
-          style={{ background: avatarColor }}
-        >
-          {getInitial(thread.sender_name)}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          {/* Row 1: name + time */}
-          <div className="flex items-center justify-between gap-1 mb-0.5">
-            <span className={`text-xs font-semibold truncate ${thread.unread ? "text-white" : "text-white/60"}`}>
-              {thread.sender_name}
-            </span>
-            <span className="text-[10px] text-white/30 shrink-0">{formatTime(thread.timestamp)}</span>
-          </div>
-
-          {/* Row 2: subject */}
-          <div className={`text-xs truncate mb-1 ${thread.unread ? "text-white/80 font-medium" : "text-white/40"}`}>
-            {thread.subject}
-          </div>
-
-          {/* Row 3: badges */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`${workflowColor[thread.workflow_status] || workflowColor.informational} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
-              {workflowLabel[thread.workflow_status] || "Info"}
-            </span>
-            {thread.tasks_count > 0 && (
-              <span className="flex items-center gap-0.5 text-[9px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
-                <CheckSquare className="size-2.5" />
-                {thread.tasks_count}
-              </span>
-            )}
-            {thread.unread && (
-              <span className="size-1.5 rounded-full bg-[#6d5bfa] ml-auto" />
-            )}
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
 
 // ─── MIDDLE PANEL: Email Card ────────────────────────────────────────────────
 

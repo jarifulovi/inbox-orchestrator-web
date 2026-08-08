@@ -7,18 +7,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/inbox/use-threads";
 import { Thread, WorkflowStatus } from "@/features/inbox/types";
 
-function getInitial(name?: string) {
-  if (!name || !name.trim()) return "?";
-  return name.trim()[0].toUpperCase();
-}
-
-function getAvatarColor(seed?: string) {
-  const safeSeed = seed || "default";
-  const palette = ["#6d5bfa", "#46d3e5", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6"];
-  let h = 0;
-  for (let i = 0; i < safeSeed.length; i++) h = safeSeed.charCodeAt(i) + ((h << 5) - h);
-  return palette[Math.abs(h) % palette.length];
-}
+import { getInitial, getAvatarColor, formatTime } from "@/features/inbox/utils";
 
 const workflowLabel: Record<WorkflowStatus, string> = {
   needs_action: "Needs Action",
@@ -35,20 +24,6 @@ const workflowColor: Record<WorkflowStatus, string> = {
   follow_up: "bg-purple-400/10 text-purple-400 border border-purple-400/20",
   archived: "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20",
 };
-
-function formatTime(ts: string) {
-  if (!ts) return "";
-  const date = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffH = Math.floor(diffMs / 3_600_000);
-  if (diffH < 1) return "Just now";
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD === 1) return "Yesterday";
-  if (diffD < 7) return `${diffD}d ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 function ThreadListItem({
   thread,
