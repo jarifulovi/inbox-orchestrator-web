@@ -4,10 +4,9 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Search, Mail, CheckSquare, Inbox } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { useThreads } from "@/features/inbox/use-threads";
-import { Thread, WorkflowStatus } from "@/features/inbox/types";
-
-import { getInitial, getAvatarColor, formatTime } from "@/features/inbox/utils";
+import { useThreads } from "@/features/threads/use-threads";
+import { Thread, WorkflowStatus } from "@/features/threads/types";
+import { getInitial, getAvatarColor, formatTime } from "@/features/threads/utils";
 
 const workflowLabel: Record<WorkflowStatus, string> = {
   needs_action: "Needs Action",

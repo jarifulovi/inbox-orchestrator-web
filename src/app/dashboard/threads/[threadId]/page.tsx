@@ -31,9 +31,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
-import { useThreads } from "@/features/inbox/use-threads";
-import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/inbox/use-thread-details";
-import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
+import { useThreads } from "@/features/threads/use-threads";
+import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/threads/use-thread-details";
+import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
 import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/components/common/email-content-view";
 import { api } from "@/lib/axios";
@@ -44,7 +44,7 @@ import {
   formatTime,
   formatFullDate,
   formatDateRange,
-} from "@/features/inbox/utils";
+} from "@/features/threads/utils";
 
 // ─── Shared Formatters & Lookups ────────────────────────────────────────────
 

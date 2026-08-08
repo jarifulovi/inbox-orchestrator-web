@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "@/lib/axios";
-import { recentSearches as defaultRecentSearches } from "@/features/search/data";
 import { SearchResult, RecentSearch } from "@/features/search/types";
 
 export function useSearch(accountId: string | undefined) {
@@ -25,10 +24,10 @@ export function useSearch(accountId: string | undefined) {
       try {
         setRecent(JSON.parse(saved));
       } catch (e) {
-        setRecent(defaultRecentSearches);
+        setRecent([]);
       }
     } else {
-      setRecent(defaultRecentSearches);
+      setRecent([]);
     }
   }, []);
 

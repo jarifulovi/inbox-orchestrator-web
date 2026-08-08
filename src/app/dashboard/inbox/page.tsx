@@ -17,8 +17,8 @@ import {
   Search,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { useThreads } from "@/features/inbox/use-threads";
-import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/inbox/types";
+import { useThreads } from "@/features/threads/use-threads";
+import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
 import { connectGoogle } from "@/features/google/google.api";
 import { toast } from "sonner";
 

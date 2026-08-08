@@ -1,4 +1,4 @@
-import { ThreadEmail } from "@/features/inbox/use-thread-details";
+import { ThreadEmail } from "@/features/threads/use-thread-details";
 
 export function getInitial(name?: string): string {
   if (!name || !name.trim()) return "?";
