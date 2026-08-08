@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -13,9 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { api } from "@/lib/axios";
-import { recentSearches } from "@/features/search/data";
-import { SearchResultType, SearchResult, RecentSearch } from "@/features/search/types";
+import { useSearch } from "@/features/search/use-search";
+import { SearchResultType, SearchResult } from "@/features/search/types";
 
 const typeConfig: Record<
   SearchResultType,
@@ -30,150 +28,18 @@ export default function SearchPage() {
   const router = useRouter();
   const { selectedAccount } = useAuth();
 
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
-  const limit = 20;
-
-  const [recent, setRecent] = useState<RecentSearch[]>([]);
-  const observerTarget = useRef<HTMLDivElement | null>(null);
-
-  // Initialize and load recent searches from local storage
-  useEffect(() => {
-    const saved = localStorage.getItem("recent_searches");
-    if (saved) {
-      try {
-        setRecent(JSON.parse(saved));
-      } catch (e) {
-        setRecent(recentSearches);
-      }
-    } else {
-      setRecent(recentSearches);
-    }
-  }, []);
-
-  // Debounce the search input (350ms delay)
-  useEffect(() => {
-    if (query.trim().length < 3) {
-      setDebouncedQuery("");
-      return;
-    }
-    const handler = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 350);
-    return () => clearTimeout(handler);
-  }, [query]);
-
-  // Helper to persist search query in history
-  const saveRecentSearch = (searchQuery: string, count: number) => {
-    if (!searchQuery.trim()) return;
-    setRecent((prev) => {
-      const filtered = prev.filter(
-        (item) => item.query.toLowerCase() !== searchQuery.toLowerCase()
-      );
-      const updated = [
-        {
-          id: `rs-${Date.now()}`,
-          query: searchQuery,
-          timestamp: new Date().toISOString(),
-          result_count: count,
-        },
-        ...filtered,
-      ].slice(0, 5);
-      localStorage.setItem("recent_searches", JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  // Perform backend search API query
-  const fetchResults = useCallback(
-    async (q: string, currentOffset: number, append: boolean) => {
-      if (!selectedAccount?.id || !q) return;
-      try {
-        if (!append) setLoading(true);
-        else setLoadingMore(true);
-
-        const res = await api.get<{ results: SearchResult[] }>(
-          `/emails/search?account_id=${
-            selectedAccount.id
-          }&q=${encodeURIComponent(
-            q
-          )}&limit=${limit}&offset=${currentOffset}&similarity_cutoff=0.35`
-        );
-        const newResults = res.data.results || [];
-
-        if (append) {
-          setResults((prev) => [...prev, ...newResults]);
-        } else {
-          setResults(newResults);
-          saveRecentSearch(q, newResults.length);
-        }
-
-        setHasMore(newResults.length === limit);
-      } catch (err) {
-        console.error("Failed to execute smart search:", err);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [selectedAccount?.id]
-  );
-
-  // Trigger search when debounced query changes
-  useEffect(() => {
-    setResults([]);
-    setOffset(0);
-    setHasMore(true);
-
-    if (!debouncedQuery) {
-      return;
-    }
-
-    fetchResults(debouncedQuery, 0, false);
-  }, [debouncedQuery, fetchResults]);
-
-  // Load next paginated page
-  const loadMore = useCallback(async () => {
-    if (loading || loadingMore || !hasMore || !debouncedQuery) return;
-    const nextOffset = offset + limit;
-    await fetchResults(debouncedQuery, nextOffset, true);
-    setOffset(nextOffset);
-  }, [loading, loadingMore, hasMore, debouncedQuery, offset, fetchResults]);
-
-  // Setup infinite scroll intersection observer
-  useEffect(() => {
-    if (!hasMore || loading || loadingMore || !debouncedQuery) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          loadMore();
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, loading, loadingMore, loadMore, debouncedQuery]);
-
-  const handleRecentClick = (searchQuery: string) => {
-    setQuery(searchQuery);
-    setDebouncedQuery(searchQuery);
-  };
+  const {
+    query,
+    setQuery,
+    debouncedQuery,
+    results,
+    loading,
+    hasMore,
+    recent,
+    observerTarget,
+    clearSearch,
+    handleRecentClick,
+  } = useSearch(selectedAccount?.id);
 
   // Route to the threads page on result click
   const handleResultClick = (result: SearchResult) => {
@@ -211,19 +77,13 @@ export default function SearchPage() {
           <input
             type="text"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. 'partnership proposals from last week' or 'pending code reviews'"
             className="w-full h-13 pl-12 pr-12 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#6d5bfa]/40 focus:border-[#6d5bfa]/40 transition-all duration-200"
           />
           {query && (
             <button
-              onClick={() => {
-                setQuery("");
-                setDebouncedQuery("");
-                setResults([]);
-              }}
+              onClick={clearSearch}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
             >
               <X className="size-4" />
