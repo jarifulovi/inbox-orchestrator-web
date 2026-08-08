@@ -185,14 +185,20 @@ function ThreadRow({ thread }: { thread: Thread }) {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-md text-xs font-medium transition-colors">
+                <Link
+                  href={`/dashboard/threads/${thread.id}`}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-md text-xs font-medium transition-colors"
+                >
                   <Eye className="size-3.5" />
                   View
-                </button>
-                <button className="flex items-center gap-1.5 px-3 py-1 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-[#a899fa] border border-[#6d5bfa]/30 rounded-md text-xs font-medium transition-colors">
+                </Link>
+                <Link
+                  href={`/dashboard/threads/${thread.id}`}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-[#a899fa] border border-[#6d5bfa]/30 rounded-md text-xs font-medium transition-colors"
+                >
                   <Reply className="size-3.5" />
                   Reply
-                </button>
+                </Link>
               </div>
             </div>
             <p className="text-sm text-white/60 leading-relaxed">

@@ -297,14 +297,14 @@ function TaskCard({
           {task.source_thread_id && (
             <>
               <Link
-                href={`/dashboard/inbox?threadId=${task.source_thread_id}`}
+                href={`/dashboard/threads/${task.source_thread_id}`}
                 className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <Eye className="size-3.5" />
                 View
               </Link>
               <Link
-                href={`/dashboard/inbox/reply/${task.source_thread_id}`}
+                href={`/dashboard/threads/${task.source_thread_id}`}
                 className="px-3 py-1.5 text-[11px] font-medium bg-[#6d5bfa]/10 text-[#8b7cf8] hover:bg-[#6d5bfa]/20 rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <Reply className="size-3.5" />
