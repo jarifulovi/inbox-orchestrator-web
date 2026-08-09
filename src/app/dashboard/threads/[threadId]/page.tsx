@@ -21,6 +21,8 @@ import {
   ArrowLeft,
   Archive,
   ArchiveRestore,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -246,7 +248,13 @@ export default function ThreadsPage() {
   const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   // Real thread detail for middle & right panels
-  const { threadDetail, loading: loadingDetail, refresh } = useThreadDetails(
+  const {
+    threadDetail,
+    loading: loadingDetail,
+    generatingSummary,
+    generateSummary,
+    refresh
+  } = useThreadDetails(
     selectedAccount?.id,
     activeThreadId
   );
@@ -529,28 +537,78 @@ export default function ThreadsPage() {
 
             {/* ── Section 2: AI Summary (Collapsible Drawer) ───── */}
             <div className="px-4 py-3 border-b border-white/[0.06] shrink-0">
-              <button
-                onClick={() => setSummaryOpen(!summaryOpen)}
-                className="w-full flex items-center justify-between gap-1.5 focus:outline-none cursor-pointer text-left"
-              >
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-1.5">
+                <button
+                  onClick={() => setSummaryOpen(!summaryOpen)}
+                  className="flex items-center gap-1.5 focus:outline-none cursor-pointer text-left"
+                >
                   <div className="size-1.5 rounded-full bg-[#8b7cf8] animate-pulse" />
                   <span className="text-[10px] uppercase tracking-widest text-[#8b7cf8] font-semibold">AI Summary</span>
-                </div>
-                {summaryOpen ? (
-                  <ChevronUp className="size-3.5 text-white/30" />
-                ) : (
-                  <ChevronDown className="size-3.5 text-white/30" />
-                )}
-              </button>
-              {summaryOpen && (
-                <div className="mt-2 overflow-y-auto scrollbar-thin max-h-[120px] transition-all duration-300">
-                  {activeThread.summary ? (
-                    <p className="text-xs text-white/55 leading-relaxed">{activeThread.summary}</p>
+                  {summaryOpen ? (
+                    <ChevronUp className="size-3.5 text-white/30" />
                   ) : (
-                    <div className="flex items-start gap-2 text-white/25">
-                      <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-                      <p className="text-xs">No AI summary available yet for this thread.</p>
+                    <ChevronDown className="size-3.5 text-white/30" />
+                  )}
+                </button>
+
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (generatingSummary) return;
+                    try {
+                      await generateSummary();
+                    } catch (err) {
+                      console.error("Summary generation error:", err);
+                    }
+                  }}
+                  disabled={generatingSummary}
+                  className="flex items-center gap-1 text-[10px] font-medium text-[#a79bfb] hover:text-white bg-[#8b7cf8]/10 hover:bg-[#8b7cf8]/25 border border-[#8b7cf8]/30 px-2 py-0.5 rounded-full transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Generate or update AI summary for this thread"
+                >
+                  {generatingSummary ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin text-[#8b7cf8]" />
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-3 text-[#8b7cf8]" />
+                      <span>{activeThread.summary ? "Re-generate" : "Summarize"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {summaryOpen && (
+                <div className="mt-2 overflow-y-auto scrollbar-thin max-h-[140px] transition-all duration-300">
+                  {generatingSummary ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-[#8b7cf8]/5 border border-[#8b7cf8]/15 text-[#a79bfb]">
+                      <Loader2 className="size-4 animate-spin shrink-0 text-[#8b7cf8]" />
+                      <p className="text-xs font-medium">Synthesizing email context & generating summary...</p>
+                    </div>
+                  ) : activeThread.summary ? (
+                    <p className="text-xs text-white/70 leading-relaxed">{activeThread.summary}</p>
+                  ) : (
+                    <div className="flex flex-col items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                      <div className="flex items-start gap-2 text-white/40">
+                        <AlertCircle className="size-3.5 shrink-0 mt-0.5 text-amber-400/80" />
+                        <p className="text-xs">No AI summary generated yet for this conversation.</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (generatingSummary) return;
+                          try {
+                            await generateSummary();
+                          } catch (err) {
+                            console.error("Summary generation error:", err);
+                          }
+                        }}
+                        disabled={generatingSummary}
+                        className="flex items-center gap-1.5 text-xs font-medium text-white bg-[#8b7cf8] hover:bg-[#7a6bf0] px-3 py-1.5 rounded-md transition-all shadow-md shadow-[#8b7cf8]/20 cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>Generate AI Summary</span>
+                      </button>
                     </div>
                   )}
                 </div>

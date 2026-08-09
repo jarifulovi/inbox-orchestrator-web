@@ -52,6 +52,7 @@ export function useThreadDetails(
 ) {
   const [data, setData] = useState<ThreadDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [generatingSummary, setGeneratingSummary] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDetails = useCallback(async () => {
@@ -70,6 +71,36 @@ export function useThreadDetails(
       setLoading(false);
     }
   }, [accountId, threadId]);
+
+  const generateSummary = useCallback(async () => {
+    if (!accountId || !threadId) return null;
+    setGeneratingSummary(true);
+    try {
+      const res = await api.post<{
+        status: string;
+        data: {
+          summary: string;
+          priority: string;
+          key_takeaways: string[];
+          summary_generated_at: string;
+          thread: ThreadDetail;
+        };
+      }>(`/emails/threads/${threadId}/summary?account_id=${accountId}`);
+
+      if (res.data?.data?.thread) {
+        setData(res.data.data.thread);
+        return res.data.data;
+      } else {
+        await fetchDetails();
+        return null;
+      }
+    } catch (err: unknown) {
+      console.error(`Failed to generate summary for thread ${threadId}:`, err);
+      throw err;
+    } finally {
+      setGeneratingSummary(false);
+    }
+  }, [accountId, threadId, fetchDetails]);
 
   useEffect(() => {
     if (!accountId || !threadId) {
@@ -121,7 +152,9 @@ export function useThreadDetails(
   return {
     threadDetail: data,
     loading,
+    generatingSummary,
     error,
     refresh: fetchDetails,
+    generateSummary,
   };
 }
