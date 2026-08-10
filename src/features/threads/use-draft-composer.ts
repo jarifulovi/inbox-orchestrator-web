@@ -1,14 +1,27 @@
 import { useState, useCallback } from "react";
 import { Task } from "@/features/tasks/types";
+import { api } from "@/lib/axios";
 
 export interface UseDraftComposerOptions {
+  accountId?: string;
+  threadId?: string;
   threadSubject?: string;
   lastSenderEmail?: string;
+  replyToEmailId?: string;
   pendingTasks?: Task[];
+  onSuccess?: () => void;
 }
 
 export function useDraftComposer(options: UseDraftComposerOptions = {}) {
-  const { threadSubject = "", lastSenderEmail = "", pendingTasks = [] } = options;
+  const {
+    accountId,
+    threadId,
+    threadSubject = "",
+    lastSenderEmail = "",
+    replyToEmailId,
+    pendingTasks = [],
+    onSuccess,
+  } = options;
 
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -129,28 +142,79 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
     }, 800);
   }, [draftBody, threadSubject]);
 
-  // Save Draft (Mocked action)
+  // Save Draft (API Integration)
   const saveDraft = useCallback(async () => {
+    if (!accountId || !threadId) return null;
     setIsSaving(true);
+    setStatusMessage("Saving draft to mailbox...");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setStatusMessage("Draft saved to mailbox.");
+      const recipients = recipientTo
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const payload = {
+        recipient_to: recipients.length > 0 ? recipients : [lastSenderEmail || "unknown@example.com"],
+        subject: subject || threadSubject || "No Subject",
+        body: draftBody || "",
+        reply_to_email_id: replyToEmailId || null,
+        resolved_task_ids: Array.from(selectedTaskIds),
+        generation_context: aiInstructions ? { ai_instructions: aiInstructions, tone: selectedTone } : null,
+      };
+
+      const res = await api.post<{ status: string; data: any }>(
+        `/emails/threads/${threadId}/drafts?account_id=${accountId}`,
+        payload
+      );
+
+      setStatusMessage("Draft saved & synced successfully.");
+      if (onSuccess) onSuccess();
+      return res.data;
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      setStatusMessage("Failed to save draft.");
+      throw err;
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [
+    accountId,
+    threadId,
+    recipientTo,
+    subject,
+    draftBody,
+    replyToEmailId,
+    selectedTaskIds,
+    aiInstructions,
+    selectedTone,
+    lastSenderEmail,
+    threadSubject,
+    onSuccess,
+  ]);
 
-  // Send Email (Mocked action)
+  // Send Email (API Integration)
   const sendEmail = useCallback(async () => {
+    if (!accountId || !threadId) return null;
     setIsSaving(true);
+    setStatusMessage("Sending message...");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const draftRes = await saveDraft();
+      const draftId = draftRes?.data?.id;
+
+      if (draftId) {
+        await api.post(`/emails/drafts/${draftId}/send?account_id=${accountId}`);
+      }
+
       setStatusMessage("Message sent successfully.");
       setIsOpen(false);
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      setStatusMessage("Failed to send message.");
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [accountId, threadId, saveDraft, onSuccess]);
 
   // Reset all composer fields
   const resetComposer = useCallback(() => {

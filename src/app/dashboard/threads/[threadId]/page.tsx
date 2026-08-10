@@ -267,12 +267,17 @@ export default function ThreadsPage() {
   const emails = threadDetail?.emails ?? [];
   const pendingTasksList = threadDetail?.tasks?.filter(t => t.status === "pending") ?? [];
   const lastSenderEmail = emails.length > 0 ? (emails[emails.length - 1].sender || "") : "";
+  const lastEmailId = emails.length > 0 ? emails[emails.length - 1].id : undefined;
 
   // Dedicated Draft & Reply Composer Hook
   const draftComposer = useDraftComposer({
+    accountId: selectedAccount?.id,
+    threadId: activeThreadId,
     threadSubject: activeThread?.subject,
     lastSenderEmail,
+    replyToEmailId: lastEmailId,
     pendingTasks: pendingTasksList,
+    onSuccess: refresh,
   });
 
   // Participant profiles extraction
