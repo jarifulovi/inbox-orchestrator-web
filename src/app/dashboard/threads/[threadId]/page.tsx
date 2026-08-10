@@ -23,6 +23,8 @@ import {
   ArchiveRestore,
   RefreshCw,
   Loader2,
+  Reply,
+  PenSquare,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,6 +37,8 @@ import {
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/threads/use-threads";
 import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/threads/use-thread-details";
+import { useDraftComposer } from "@/features/threads/use-draft-composer";
+import { DraftComposerDrawer } from "@/features/threads/components/DraftComposerDrawer";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
 import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/components/common/email-content-view";
@@ -261,6 +265,15 @@ export default function ThreadsPage() {
 
   const activeThread = threadDetail?.thread ?? null;
   const emails = threadDetail?.emails ?? [];
+  const pendingTasksList = threadDetail?.tasks?.filter(t => t.status === "pending") ?? [];
+  const lastSenderEmail = emails.length > 0 ? (emails[emails.length - 1].sender || "") : "";
+
+  // Dedicated Draft & Reply Composer Hook
+  const draftComposer = useDraftComposer({
+    threadSubject: activeThread?.subject,
+    lastSenderEmail,
+    pendingTasks: pendingTasksList,
+  });
 
   // Participant profiles extraction
   const uniqueParticipants = useMemo(() => {
@@ -370,7 +383,7 @@ export default function ThreadsPage() {
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* MIDDLE PANEL — Email viewer                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 flex flex-col h-full border-r border-white/[0.06]">
+      <div className="flex-1 min-w-0 flex flex-col h-full border-r border-white/[0.06] relative overflow-hidden">
         {loadingDetail ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-6">
             <div className="size-8 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
@@ -440,12 +453,21 @@ export default function ThreadsPage() {
                   </div>
                 </div>
 
-                {/* Header Action: Dynamic Archive / Unarchive Thread Button */}
-                <div className="shrink-0 pt-0.5">
+                {/* Header Actions: Unified Compose / Reply and Archive/Unarchive */}
+                <div className="shrink-0 pt-0.5 flex items-center gap-2">
+                  <button
+                    onClick={draftComposer.openComposer}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8b7cf8]/15 hover:bg-[#8b7cf8]/25 text-[#a79bfb] hover:text-white border border-[#8b7cf8]/30 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm cursor-pointer"
+                    title="Compose or reply to thread"
+                  >
+                    <PenSquare className="size-3.5 text-[#8b7cf8]" />
+                    <span>Compose / Reply</span>
+                  </button>
+
                   {isThreadArchived ? (
                     <button
                       onClick={() => setUnarchiveModalOpen(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-white border border-[#6d5bfa]/40 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-white border border-[#6d5bfa]/40 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm cursor-pointer"
                       title="Unarchive thread"
                     >
                       <ArchiveRestore className="size-3.5 text-[#8b7cf8]" />
@@ -454,7 +476,7 @@ export default function ThreadsPage() {
                   ) : (
                     <button
                       onClick={() => setArchiveModalOpen(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800/60 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-white/10 rounded-lg text-xs font-medium transition-all duration-150 shadow-sm cursor-pointer"
                       title="Archive thread"
                     >
                       <Archive className="size-3.5 text-zinc-400" />
@@ -477,6 +499,36 @@ export default function ThreadsPage() {
                 />
               ))}
             </div>
+
+            {/* Expanded / Docked Draft Composer Drawer */}
+            <DraftComposerDrawer
+              isOpen={draftComposer.isOpen}
+              isMinimized={draftComposer.isMinimized}
+              recipientTo={draftComposer.recipientTo}
+              subject={draftComposer.subject}
+              selectedTaskIds={draftComposer.selectedTaskIds}
+              aiInstructions={draftComposer.aiInstructions}
+              selectedTone={draftComposer.selectedTone}
+              draftBody={draftComposer.draftBody}
+              isGenerating={draftComposer.isGenerating}
+              isSaving={draftComposer.isSaving}
+              statusMessage={draftComposer.statusMessage}
+              pendingTasks={pendingTasksList}
+              onRecipientChange={draftComposer.setRecipientTo}
+              onSubjectChange={draftComposer.setSubject}
+              onAiInstructionsChange={draftComposer.setAiInstructions}
+              onToneChange={draftComposer.setSelectedTone}
+              onDraftBodyChange={draftComposer.setDraftBody}
+              onToggleTask={draftComposer.toggleTaskResolution}
+              onToggleAllTasks={draftComposer.toggleAllTasks}
+              onGenerateAI={draftComposer.generateDraftContent}
+              onQuickRefine={draftComposer.applyQuickRefine}
+              onSaveDraft={draftComposer.saveDraft}
+              onSendEmail={draftComposer.sendEmail}
+              onClose={draftComposer.closeComposer}
+              onToggleMinimize={draftComposer.toggleMinimize}
+              onDiscard={draftComposer.resetComposer}
+            />
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-6">
