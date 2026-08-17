@@ -7,7 +7,6 @@ import {
   Cpu,
   Search,
   ArrowUpDown,
-  Filter,
   Flame,
   Volume2,
   CheckCircle2,
@@ -21,46 +20,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { mockSenderAnalytics, mockSystemAnalytics } from "@/features/analytics/data";
-import { SenderAnalyticsItem, SenderClassification } from "@/features/analytics/types";
 
 type AnalyticsTab = "senders" | "system";
 type SortOption = "density_desc" | "volume_desc" | "noise_desc" | "tasks_desc";
-type FilterCategory = "all" | "high_demand" | "noise_heavy";
-
-function getClassificationBadge(classification: SenderClassification) {
-  switch (classification) {
-    case "high_demand":
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
-          <Flame className="size-3 text-rose-400" />
-          High Demand
-        </span>
-      );
-    case "noise_heavy":
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-          <Volume2 className="size-3 text-amber-400" />
-          Noise Heavy
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-          <CheckCircle2 className="size-3 text-emerald-400" />
-          Balanced
-        </span>
-      );
-  }
-}
-
-function getIntentBadge(intent: string) {
-  const formatted = intent.replace(/_/g, " ");
-  return (
-    <span className="text-[11px] font-medium bg-white/5 text-white/60 border border-white/10 px-2.5 py-0.5 rounded-md capitalize">
-      {formatted}
-    </span>
-  );
-}
+type FilterCategory = "all" | "high_action" | "high_noise";
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("senders");
@@ -77,8 +40,8 @@ export default function AnalyticsPage() {
     return [...mockSenderAnalytics].sort((a, b) => b.noise_ratio - a.noise_ratio)[0];
   }, []);
 
-  const avgDensity = useMemo(() => {
-    const total = mockSenderAnalytics.reduce((acc, s) => acc + s.workload_density_ratio, 0);
+  const avgActionRate = useMemo(() => {
+    const total = mockSenderAnalytics.reduce((acc, s) => acc + s.actionable_email_rate, 0);
     return (total / mockSenderAnalytics.length).toFixed(1);
   }, []);
 
@@ -86,9 +49,9 @@ export default function AnalyticsPage() {
   const filteredSenders = useMemo(() => {
     return mockSenderAnalytics
       .filter((sender) => {
-        // Category Filter
-        if (filterCategory === "high_demand" && sender.classification !== "high_demand") return false;
-        if (filterCategory === "noise_heavy" && sender.classification !== "noise_heavy") return false;
+        // Category Filter based on Actionable Rate & Noise Ratio
+        if (filterCategory === "high_action" && sender.actionable_email_rate < 50) return false;
+        if (filterCategory === "high_noise" && sender.noise_ratio < 80) return false;
 
         // Search Query Filter
         if (searchQuery.trim()) {
@@ -101,7 +64,7 @@ export default function AnalyticsPage() {
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === "density_desc") return b.workload_density_ratio - a.workload_density_ratio;
+        if (sortBy === "density_desc") return b.actionable_email_rate - a.actionable_email_rate;
         if (sortBy === "volume_desc") return b.total_emails - a.total_emails;
         if (sortBy === "noise_desc") return b.noise_ratio - a.noise_ratio;
         if (sortBy === "tasks_desc") return b.total_tasks - a.total_tasks;
@@ -119,7 +82,7 @@ export default function AnalyticsPage() {
             Workspace Analytics & Intelligence
           </h1>
           <p className="text-sm text-white/40 mt-1">
-            Real-time workload density, sender traffic analysis, and system extraction metrics.
+            Real-time sender workload analysis, email traffic metrics, and system performance analytics.
           </p>
         </div>
 
@@ -169,8 +132,8 @@ export default function AnalyticsPage() {
               <div className="text-lg font-bold text-white">{topWorkloadSender?.sender_name}</div>
               <div className="text-xs text-white/40 font-mono mt-0.5">{topWorkloadSender?.sender_email}</div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
-                <span>Workload Density</span>
-                <span className="font-bold text-white">{topWorkloadSender?.workload_density_ratio}%</span>
+                <span>Actionable Email Rate</span>
+                <span className="font-bold text-white">{topWorkloadSender?.actionable_email_rate}%</span>
               </div>
             </div>
 
@@ -193,19 +156,19 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            {/* Average Workload Density */}
+            {/* Average Actionable Email Rate */}
             <div className="glass-card rounded-xl p-5 border border-[#8b7cf8]/20 bg-gradient-to-br from-[#8b7cf8]/5 to-transparent relative overflow-hidden">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] uppercase tracking-widest text-[#8b7cf8] font-bold flex items-center gap-1.5">
                   <Zap className="size-4 text-[#8b7cf8]" />
-                  Avg Workload Density
+                  Avg Actionable Rate
                 </span>
                 <span className="text-xs font-bold text-[#8b7cf8] bg-[#8b7cf8]/10 px-2 py-0.5 rounded-full border border-[#8b7cf8]/20">
                   Workspace Ratio
                 </span>
               </div>
-              <div className="text-3xl font-extrabold text-white tracking-tight">{avgDensity}%</div>
-              <div className="text-xs text-white/40 mt-1">Average tasks extracted per 100 incoming emails</div>
+              <div className="text-3xl font-extrabold text-white tracking-tight">{avgActionRate}%</div>
+              <div className="text-xs text-white/40 mt-1">Average percentage of emails containing actionable tasks</div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
                 <span>Total Tracked Senders</span>
                 <span className="font-bold text-white">{mockSenderAnalytics.length} senders</span>
@@ -229,26 +192,26 @@ export default function AnalyticsPage() {
                   All Senders ({mockSenderAnalytics.length})
                 </button>
                 <button
-                  onClick={() => setFilterCategory("high_demand")}
+                  onClick={() => setFilterCategory("high_action")}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    filterCategory === "high_demand"
+                    filterCategory === "high_action"
                       ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                       : "text-white/40 hover:text-white hover:bg-white/5"
                   }`}
                 >
                   <Flame className="size-3.5 text-rose-400" />
-                  High Demand
+                  High Action (≥ 50%)
                 </button>
                 <button
-                  onClick={() => setFilterCategory("noise_heavy")}
+                  onClick={() => setFilterCategory("high_noise")}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    filterCategory === "noise_heavy"
+                    filterCategory === "high_noise"
                       ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                       : "text-white/40 hover:text-white hover:bg-white/5"
                   }`}
                 >
                   <Volume2 className="size-3.5 text-amber-400" />
-                  Noise Heavy
+                  Noise Heavy (≥ 80%)
                 </button>
               </div>
 
@@ -274,7 +237,7 @@ export default function AnalyticsPage() {
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
                     className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
                   >
-                    <option value="density_desc" className="bg-[#0b0d11] text-white">Workload Density (High to Low)</option>
+                    <option value="density_desc" className="bg-[#0b0d11] text-white">Actionable Rate (High to Low)</option>
                     <option value="tasks_desc" className="bg-[#0b0d11] text-white">Task Count (High to Low)</option>
                     <option value="volume_desc" className="bg-[#0b0d11] text-white">Email Volume (High to Low)</option>
                     <option value="noise_desc" className="bg-[#0b0d11] text-white">Noise Ratio (High to Low)</option>
@@ -291,9 +254,7 @@ export default function AnalyticsPage() {
                     <th className="px-4 py-3 font-semibold">Sender Details</th>
                     <th className="px-4 py-3 font-semibold text-center">Inbound Volume</th>
                     <th className="px-4 py-3 font-semibold text-center">Actionable Tasks</th>
-                    <th className="px-4 py-3 font-semibold">Workload Density %</th>
-                    <th className="px-4 py-3 font-semibold">Primary Intent</th>
-                    <th className="px-4 py-3 font-semibold">Classification</th>
+                    <th className="px-4 py-3 font-semibold">Actionable Rate & Intensity</th>
                     <th className="px-4 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
@@ -330,33 +291,27 @@ export default function AnalyticsPage() {
                         </div>
                       </td>
 
-                      {/* Workload Density Bar */}
+                      {/* Actionable Email Rate & Task Intensity Bar */}
                       <td className="px-4 py-3.5">
-                        <div className="space-y-1 max-w-[140px]">
+                        <div className="space-y-1 max-w-[160px]">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-white">{sender.workload_density_ratio}%</span>
-                            <span className="text-[10px] text-white/30">{sender.noise_ratio.toFixed(0)}% noise</span>
+                            <span className="font-bold text-white">{sender.actionable_email_rate}% action</span>
+                            <span className="text-[10px] text-white/40 font-mono">{sender.task_multiplier.toFixed(2)}x/email</span>
                           </div>
                           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                sender.workload_density_ratio >= 50
+                                sender.actionable_email_rate >= 50
                                   ? "bg-rose-500"
-                                  : sender.workload_density_ratio >= 30
+                                  : sender.actionable_email_rate >= 20
                                   ? "bg-emerald-400"
                                   : "bg-amber-400"
                               }`}
-                              style={{ width: `${Math.max(5, sender.workload_density_ratio)}%` }}
+                              style={{ width: `${Math.max(5, sender.actionable_email_rate)}%` }}
                             />
                           </div>
                         </div>
                       </td>
-
-                      {/* Primary Intent */}
-                      <td className="px-4 py-3.5">{getIntentBadge(sender.primary_intent)}</td>
-
-                      {/* Classification */}
-                      <td className="px-4 py-3.5">{getClassificationBadge(sender.classification)}</td>
 
                       {/* Actions */}
                       <td className="px-4 py-3.5 text-right">
@@ -373,7 +328,7 @@ export default function AnalyticsPage() {
 
                   {filteredSenders.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-white/40 text-xs">
+                      <td colSpan={5} className="px-4 py-8 text-center text-white/40 text-xs">
                         No senders match your search criteria or filters.
                       </td>
                     </tr>

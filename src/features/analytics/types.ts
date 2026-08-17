@@ -1,5 +1,3 @@
-export type SenderClassification = "high_demand" | "balanced" | "noise_heavy";
-
 export interface SenderAnalyticsItem {
   id: string;
   sender_email: string;
@@ -8,10 +6,9 @@ export interface SenderAnalyticsItem {
   total_tasks: number;
   pending_tasks: number;
   completed_tasks: number;
-  workload_density_ratio: number; // (total_tasks / total_emails) * 100
-  noise_ratio: number; // ((total_emails - total_tasks) / total_emails) * 100
-  classification: SenderClassification;
-  primary_intent: string; // e.g. "schedule_meeting", "reply_requested", "provide_information"
+  actionable_email_rate: number; // % of emails containing >= 1 tasks (0-100%)
+  noise_ratio: number; // % of emails containing 0 tasks (0-100%)
+  task_multiplier: number; // avg generated tasks per email (e.g. 0.68)
   last_email_at: string;
 }
 
