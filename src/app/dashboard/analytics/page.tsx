@@ -37,7 +37,12 @@ export default function AnalyticsPage() {
   }, []);
 
   const topNoiseSender = useMemo(() => {
-    return [...mockSenderAnalytics].sort((a, b) => b.noise_ratio - a.noise_ratio)[0];
+    return [...mockSenderAnalytics].sort((a, b) => {
+      if (b.noise_ratio !== a.noise_ratio) {
+        return b.noise_ratio - a.noise_ratio;
+      }
+      return b.total_emails - a.total_emails; // Tie-break by highest volume!
+    })[0];
   }, []);
 
   const avgActionRate = useMemo(() => {
@@ -66,7 +71,12 @@ export default function AnalyticsPage() {
       .sort((a, b) => {
         if (sortBy === "density_desc") return b.actionable_email_rate - a.actionable_email_rate;
         if (sortBy === "volume_desc") return b.total_emails - a.total_emails;
-        if (sortBy === "noise_desc") return b.noise_ratio - a.noise_ratio;
+        if (sortBy === "noise_desc") {
+          if (b.noise_ratio !== a.noise_ratio) {
+            return b.noise_ratio - a.noise_ratio;
+          }
+          return b.total_emails - a.total_emails; // Secondary sort tie-breaker by volume!
+        }
         if (sortBy === "tasks_desc") return b.total_tasks - a.total_tasks;
         return 0;
       });
@@ -151,8 +161,10 @@ export default function AnalyticsPage() {
               <div className="text-lg font-bold text-white">{topNoiseSender?.sender_name}</div>
               <div className="text-xs text-white/40 font-mono mt-0.5">{topNoiseSender?.sender_email}</div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
-                <span>Conversational Noise Ratio</span>
-                <span className="font-bold text-amber-400">{topNoiseSender?.noise_ratio.toFixed(1)}%</span>
+                <span>Actionable Email Rate</span>
+                <span className="font-bold text-amber-400">
+                  {topNoiseSender ? `${topNoiseSender.actionable_email_rate}% (${topNoiseSender.total_emails} messages)` : "N/A"}
+                </span>
               </div>
             </div>
 
