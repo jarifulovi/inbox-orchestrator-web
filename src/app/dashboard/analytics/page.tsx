@@ -17,42 +17,51 @@ import {
   Sparkles,
   Mail,
   Zap,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { mockSenderAnalytics, mockSystemAnalytics } from "@/features/analytics/data";
+import { useAuth } from "@/features/auth/auth-context";
+import { useAnalytics } from "@/features/analytics/use-analytics";
 
 type AnalyticsTab = "senders" | "system";
 type SortOption = "density_desc" | "volume_desc" | "noise_desc" | "tasks_desc";
 type FilterCategory = "all" | "high_action" | "high_noise";
 
 export default function AnalyticsPage() {
+  const { selectedAccount } = useAuth();
+  const { senders, systemSummary, isLoading, error, refetch } = useAnalytics(selectedAccount?.id);
+
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("senders");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("density_desc");
   const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
 
-  // Key KPI metrics calculations
+  // Key KPI metrics calculations derived from live backend analytics data
   const topWorkloadSender = useMemo(() => {
-    return [...mockSenderAnalytics].sort((a, b) => b.total_tasks - a.total_tasks)[0];
-  }, []);
+    if (!senders.length) return null;
+    return [...senders].sort((a, b) => b.total_tasks - a.total_tasks)[0];
+  }, [senders]);
 
   const topNoiseSender = useMemo(() => {
-    return [...mockSenderAnalytics].sort((a, b) => {
+    if (!senders.length) return null;
+    return [...senders].sort((a, b) => {
       if (b.noise_ratio !== a.noise_ratio) {
         return b.noise_ratio - a.noise_ratio;
       }
-      return b.total_emails - a.total_emails; // Tie-break by highest volume!
+      return b.total_emails - a.total_emails; // Secondary sort tie-breaker by highest volume!
     })[0];
-  }, []);
+  }, [senders]);
 
   const avgActionRate = useMemo(() => {
-    const total = mockSenderAnalytics.reduce((acc, s) => acc + s.actionable_email_rate, 0);
-    return (total / mockSenderAnalytics.length).toFixed(1);
-  }, []);
+    if (!senders.length) return "0.0";
+    const total = senders.reduce((acc, s) => acc + s.actionable_email_rate, 0);
+    return (total / senders.length).toFixed(1);
+  }, [senders]);
 
   // Filter & Sort Sender Leaderboard
   const filteredSenders = useMemo(() => {
-    return mockSenderAnalytics
+    return senders
       .filter((sender) => {
         // Category Filter based on Actionable Rate & Noise Ratio
         if (filterCategory === "high_action" && sender.actionable_email_rate < 50) return false;
@@ -80,7 +89,7 @@ export default function AnalyticsPage() {
         if (sortBy === "tasks_desc") return b.total_tasks - a.total_tasks;
         return 0;
       });
-  }, [searchQuery, sortBy, filterCategory]);
+  }, [senders, searchQuery, sortBy, filterCategory]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -96,35 +105,70 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        {/* Tab Switcher Buttons */}
-        <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] p-1.5 rounded-xl self-start md:self-auto">
+        {/* Tab Switcher Buttons & Refetch Button */}
+        <div className="flex items-center gap-3 self-start md:self-auto">
           <button
-            onClick={() => setActiveTab("senders")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === "senders"
-                ? "bg-[#6d5bfa] text-white shadow-lg shadow-[#6d5bfa]/30"
-                : "text-white/50 hover:text-white hover:bg-white/5"
-            }`}
+            onClick={refetch}
+            disabled={isLoading}
+            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/10 border border-white/[0.08] text-white/60 hover:text-white transition-all disabled:opacity-50"
+            title="Refresh Analytics"
           >
-            <Users className="size-4" />
-            Sender Intelligence
+            <RefreshCw className={`size-4 ${isLoading ? "animate-spin text-[#8b7cf8]" : ""}`} />
           </button>
-          <button
-            onClick={() => setActiveTab("system")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === "system"
-                ? "bg-[#6d5bfa] text-white shadow-lg shadow-[#6d5bfa]/30"
-                : "text-white/50 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Cpu className="size-4" />
-            System Performance
-          </button>
+
+          <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] p-1.5 rounded-xl">
+            <button
+              onClick={() => setActiveTab("senders")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "senders"
+                  ? "bg-[#6d5bfa] text-white shadow-lg shadow-[#6d5bfa]/30"
+                  : "text-white/50 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Users className="size-4" />
+              Sender Intelligence
+            </button>
+            <button
+              onClick={() => setActiveTab("system")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "system"
+                  ? "bg-[#6d5bfa] text-white shadow-lg shadow-[#6d5bfa]/30"
+                  : "text-white/50 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Cpu className="size-4" />
+              System Performance
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Loading Skeleton */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <Loader2 className="size-8 text-[#8b7cf8] animate-spin" />
+          <p className="text-sm text-white/50 font-medium">Computing workspace analytics & traffic metrics...</p>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {error && !isLoading && (
+        <div className="glass-card rounded-2xl p-5 border border-rose-500/30 bg-rose-500/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="size-5 text-rose-400 shrink-0" />
+            <span className="text-xs text-rose-200">{error}</span>
+          </div>
+          <button
+            onClick={refetch}
+            className="text-xs font-semibold text-rose-300 hover:text-white underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* SUB-MODULE 1: SENDER INTELLIGENCE & LEADERBOARD */}
-      {activeTab === "senders" && (
+      {!isLoading && activeTab === "senders" && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* Top KPI Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -136,14 +180,20 @@ export default function AnalyticsPage() {
                   Top Workload Generator
                 </span>
                 <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                  {topWorkloadSender?.total_tasks} Tasks Injected
+                  {topWorkloadSender ? `${topWorkloadSender.total_tasks} Tasks Injected` : "0 Tasks"}
                 </span>
               </div>
-              <div className="text-lg font-bold text-white">{topWorkloadSender?.sender_name}</div>
-              <div className="text-xs text-white/40 font-mono mt-0.5">{topWorkloadSender?.sender_email}</div>
+              <div className="text-lg font-bold text-white">
+                {topWorkloadSender ? topWorkloadSender.sender_name : "No Data Yet"}
+              </div>
+              <div className="text-xs text-white/40 font-mono mt-0.5">
+                {topWorkloadSender ? topWorkloadSender.sender_email : "—"}
+              </div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
                 <span>Actionable Email Rate</span>
-                <span className="font-bold text-white">{topWorkloadSender?.actionable_email_rate}%</span>
+                <span className="font-bold text-white">
+                  {topWorkloadSender ? `${topWorkloadSender.actionable_email_rate}%` : "0.0%"}
+                </span>
               </div>
             </div>
 
@@ -155,11 +205,15 @@ export default function AnalyticsPage() {
                   Top Noise Channel
                 </span>
                 <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                  {topNoiseSender?.total_emails} Emails / {topNoiseSender?.total_tasks} Tasks
+                  {topNoiseSender ? `${topNoiseSender.total_emails} Emails / ${topNoiseSender.total_tasks} Tasks` : "0 Messages"}
                 </span>
               </div>
-              <div className="text-lg font-bold text-white">{topNoiseSender?.sender_name}</div>
-              <div className="text-xs text-white/40 font-mono mt-0.5">{topNoiseSender?.sender_email}</div>
+              <div className="text-lg font-bold text-white">
+                {topNoiseSender ? topNoiseSender.sender_name : "No Noise Channels"}
+              </div>
+              <div className="text-xs text-white/40 font-mono mt-0.5">
+                {topNoiseSender ? topNoiseSender.sender_email : "—"}
+              </div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
                 <span>Actionable Email Rate</span>
                 <span className="font-bold text-amber-400">
@@ -183,7 +237,7 @@ export default function AnalyticsPage() {
               <div className="text-xs text-white/40 mt-1">Average percentage of emails containing actionable tasks</div>
               <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-white/50">
                 <span>Total Tracked Senders</span>
-                <span className="font-bold text-white">{mockSenderAnalytics.length} senders</span>
+                <span className="font-bold text-white">{senders.length} senders</span>
               </div>
             </div>
           </div>
@@ -201,7 +255,7 @@ export default function AnalyticsPage() {
                       : "text-white/40 hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  All Senders ({mockSenderAnalytics.length})
+                  All Senders ({senders.length})
                 </button>
                 <button
                   onClick={() => setFilterCategory("high_action")}
@@ -353,7 +407,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* SUB-MODULE 2: SYSTEM LEVEL INTELLIGENCE */}
-      {activeTab === "system" && (
+      {!isLoading && activeTab === "system" && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* System Performance Overview Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -362,7 +416,7 @@ export default function AnalyticsPage() {
                 <Mail className="size-4 text-[#8b7cf8]" />
                 Emails Processed
               </div>
-              <div className="text-2xl font-bold text-white">{mockSystemAnalytics.total_emails_processed}</div>
+              <div className="text-2xl font-bold text-white">{systemSummary?.total_emails_processed || 0}</div>
               <div className="text-[11px] text-white/30 mt-1">Total inbound messages</div>
             </div>
 
@@ -371,9 +425,9 @@ export default function AnalyticsPage() {
                 <Layers className="size-4 text-[#46d3e5]" />
                 Tasks Extracted
               </div>
-              <div className="text-2xl font-bold text-white">{mockSystemAnalytics.total_tasks_extracted}</div>
+              <div className="text-2xl font-bold text-white">{systemSummary?.total_tasks_extracted || 0}</div>
               <div className="text-[11px] text-emerald-400 mt-1">
-                {mockSystemAnalytics.task_extraction_rate}% extraction rate
+                {systemSummary?.task_extraction_rate || 0}% extraction rate
               </div>
             </div>
 
@@ -382,7 +436,9 @@ export default function AnalyticsPage() {
                 <Clock className="size-4 text-emerald-400" />
                 Avg Resolution Time
               </div>
-              <div className="text-2xl font-bold text-white">{mockSystemAnalytics.avg_task_completion_hours} hrs</div>
+              <div className="text-2xl font-bold text-white">
+                {systemSummary?.avg_task_completion_hours || 0} hrs
+              </div>
               <div className="text-[11px] text-white/30 mt-1">Task completion SLA</div>
             </div>
 
@@ -391,7 +447,7 @@ export default function AnalyticsPage() {
                 <AlertTriangle className="size-4 text-amber-400" />
                 SLA Breached Threads
               </div>
-              <div className="text-2xl font-bold text-amber-400">{mockSystemAnalytics.sla_breached_count}</div>
+              <div className="text-2xl font-bold text-amber-400">{systemSummary?.sla_breached_count || 0}</div>
               <div className="text-[11px] text-white/30 mt-1">&gt; 48h awaiting reply</div>
             </div>
           </div>
@@ -407,7 +463,7 @@ export default function AnalyticsPage() {
               <p className="text-xs text-white/40">Categorized operational workload types across all incoming messages.</p>
 
               <div className="space-y-3 pt-2">
-                {mockSystemAnalytics.intent_distribution.map((item) => (
+                {systemSummary?.intent_distribution.map((item) => (
                   <div key={item.label} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-white/80">{item.label}</span>
@@ -421,6 +477,10 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                 ))}
+
+                {(!systemSummary?.intent_distribution || systemSummary.intent_distribution.length === 0) && (
+                  <div className="text-xs text-white/40 text-center py-4">No task intents extracted yet.</div>
+                )}
               </div>
             </div>
 
@@ -441,7 +501,9 @@ export default function AnalyticsPage() {
                       <div className="text-xs font-semibold text-white">Actionable Email Rate</div>
                       <div className="text-[11px] text-white/40">Messages generating 1+ task</div>
                     </div>
-                    <div className="text-xl font-bold text-emerald-400">27.7%</div>
+                    <div className="text-xl font-bold text-emerald-400">
+                      {systemSummary?.task_extraction_rate || 0}%
+                    </div>
                   </div>
 
                   <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl flex items-center justify-between">
@@ -449,7 +511,9 @@ export default function AnalyticsPage() {
                       <div className="text-xs font-semibold text-white">Conversational Noise Rejection</div>
                       <div className="text-[11px] text-white/40">Passive / FYIs filtered out</div>
                     </div>
-                    <div className="text-xl font-bold text-[#46d3e5]">72.3%</div>
+                    <div className="text-xl font-bold text-[#46d3e5]">
+                      {systemSummary ? (100.0 - systemSummary.task_extraction_rate).toFixed(1) : 0}%
+                    </div>
                   </div>
                 </div>
               </div>
