@@ -33,8 +33,8 @@ type SortOption = "density_desc" | "volume_desc" | "noise_desc" | "tasks_desc";
 type FilterCategory = "all" | "high_action" | "high_noise";
 
 export default function AnalyticsPage() {
-  const { selectedAccount } = useAuth();
-  const { senders, systemSummary, isLoading, error, refetch } = useAnalytics(selectedAccount?.id);
+  const { selectedAccount, loading: authLoading } = useAuth();
+  const { senders, systemSummary, isLoading, error, refetch } = useAnalytics(selectedAccount?.id, authLoading);
 
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("senders");
   const [searchQuery, setSearchQuery] = useState("");
