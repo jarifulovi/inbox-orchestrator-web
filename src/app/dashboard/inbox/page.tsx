@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -213,11 +214,20 @@ function ThreadRow({ thread }: { thread: Thread }) {
 
 export default function InboxPage() {
   const { selectedAccount } = useAuth();
+  const searchParams = useSearchParams();
+  const qParam = searchParams.get("q");
   
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  // Sync ?q= URL search parameter on page load
+  useEffect(() => {
+    if (qParam) {
+      setSearchQuery(qParam);
+    }
+  }, [qParam]);
 
   // Debounce search query to stop intermediate requests on rapid typing/erasing
   useEffect(() => {

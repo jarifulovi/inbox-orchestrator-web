@@ -19,8 +19,12 @@ import {
   Zap,
   Loader2,
   RefreshCw,
+  Ban,
+  UserX,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { api } from "@/lib/axios";
 import { useAuth } from "@/features/auth/auth-context";
 import { useAnalytics } from "@/features/analytics/use-analytics";
 
@@ -36,6 +40,25 @@ export default function AnalyticsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("density_desc");
   const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
+  const [unsubSender, setUnsubSender] = useState<{ email: string; name: string } | null>(null);
+  const [unsubmitting, setUnsubmitting] = useState(false);
+
+  const handleUnsubscribe = async () => {
+    if (!unsubSender || !selectedAccount?.id) return;
+    setUnsubmitting(true);
+    try {
+      const res = await api.post(`/emails/senders/unsubscribe?account_id=${selectedAccount.id}`, {
+        sender_email: unsubSender.email,
+      });
+      toast.success(res.data.message || `Unsubscribed from ${unsubSender.name}`);
+      setUnsubSender(null);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || `Failed to unsubscribe from ${unsubSender.name}`);
+    } finally {
+      setUnsubmitting(false);
+    }
+  };
 
   // Key KPI metrics calculations derived from live backend analytics data
   const topWorkloadSender = useMemo(() => {
@@ -381,13 +404,23 @@ export default function AnalyticsPage() {
 
                       {/* Actions */}
                       <td className="px-4 py-3.5 text-right">
-                        <Link
-                          href={`/dashboard/inbox?q=${encodeURIComponent(sender.sender_email)}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8b7cf8] hover:text-white bg-[#8b7cf8]/10 hover:bg-[#8b7cf8] border border-[#8b7cf8]/20 px-2.5 py-1 rounded-lg transition-all"
-                        >
-                          Filter Inbox
-                          <ExternalLink className="size-3" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setUnsubSender({ email: sender.sender_email, name: sender.sender_name })}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 px-2 py-1 rounded-lg transition-all"
+                            title="One-Click Unsubscribe"
+                          >
+                            <UserX className="size-3" />
+                            Unsubscribe
+                          </button>
+                          <Link
+                            href={`/dashboard/inbox?q=${encodeURIComponent(sender.sender_email)}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8b7cf8] hover:text-white bg-[#8b7cf8]/10 hover:bg-[#8b7cf8] border border-[#8b7cf8]/20 px-2.5 py-1 rounded-lg transition-all"
+                          >
+                            Filter Inbox
+                            <ExternalLink className="size-3" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -401,6 +434,55 @@ export default function AnalyticsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsubscribe Confirmation Modal */}
+      {unsubSender && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="glass-card max-w-md w-full rounded-2xl p-6 border border-white/10 space-y-5 shadow-2xl">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                <UserX className="size-6 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">One-Click Unsubscribe</h3>
+                <p className="text-xs text-white/40 font-mono mt-0.5">{unsubSender.email}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/70 leading-relaxed">
+              Are you sure you want to unsubscribe from <strong className="text-white">{unsubSender.name}</strong>?
+              We will issue an automated RFC 8058 One-Click Unsubscribe request to remove your address from their mailing list.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setUnsubSender(null)}
+                disabled={unsubmitting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/5 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnsubscribe}
+                disabled={unsubmitting}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/20 transition-all disabled:opacity-50"
+              >
+                {unsubmitting ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Unsubscribing...
+                  </>
+                ) : (
+                  <>
+                    <UserX className="size-3.5" />
+                    Confirm Unsubscribe
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
