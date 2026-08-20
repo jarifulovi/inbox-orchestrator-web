@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please fill in all fields");
@@ -49,7 +49,7 @@ export default function LoginPage() {
           Sign in
         </h2>
         <p className="text-sm text-white/40">
-          Access your orchestrated inbox workspace
+          Access your orchestrated, noise-free inbox workspace
         </p>
       </div>
 

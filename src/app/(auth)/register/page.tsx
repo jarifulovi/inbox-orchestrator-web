@@ -63,7 +63,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Email and password are required");
@@ -184,10 +184,8 @@ export default function RegisterPage() {
               fill="currentColor"
             />
           </svg>
-          <p className="text-xs text-white/45 leading-relaxed">
-            After signup you'll connect your{" "}
-            <span className="text-[#8b7cf8]">Google account</span> to activate
-            email orchestration.
+          <p className="text-xs text-white/50 leading-relaxed">
+            Connecting your <span className="text-[#8b7cf8] font-semibold">Google account</span> activates automated ingestion to strip away noise and extract actionable tasks.
           </p>
         </div>
 

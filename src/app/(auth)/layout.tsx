@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppLogo } from "@/components/shared/logo";
 
 export const metadata: Metadata = {
   title: "Auth – InboxOrchestrator AI",
@@ -27,84 +28,52 @@ export default function AuthLayout({
         </div>
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-2.5">
-          <span className="logo-icon">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 28 28"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect width="28" height="28" rx="8" fill="url(#logoGrad)" />
-              <path
-                d="M6 10l8 5 8-5M6 10v8l8 5 8-5V10"
-                stroke="#fff"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-              <defs>
-                <linearGradient
-                  id="logoGrad"
-                  x1="0"
-                  y1="0"
-                  x2="28"
-                  y2="28"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop stopColor="#6d5bfa" />
-                  <stop offset="1" stopColor="#46d3e5" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </span>
-          <span className="text-white font-semibold text-[15px] tracking-tight">
-            InboxOrchestrator <span className="text-[#8b7cf8]">AI</span>
-          </span>
+        <div className="relative z-10 flex items-center">
+          <AppLogo size={36} showText={true} href="/" />
         </div>
 
         {/* Hero copy */}
         <div className="relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 backdrop-blur">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-xs text-white/70 backdrop-blur">
             <span className="size-1.5 rounded-full bg-[#6d5bfa] animate-pulse" />
-            Powered by multi-model AI
+            Automated Ingestion & Noise Reduction
           </div>
 
-          <h1 className="text-4xl font-bold text-white leading-tight tracking-tight">
-            Your inbox,{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8b7cf8] to-[#46d3e5]">
-              intelligently
+          <h1 className="text-4xl font-extrabold text-white leading-tight tracking-tight">
+            Transform your inbox into an{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8b7cf8] via-[#a78bfa] to-[#46d3e5]">
+              actionable workspace.
             </span>
-            <br />
-            orchestrated.
           </h1>
 
-          <p className="text-white/50 text-base leading-relaxed max-w-sm">
-            Connect your Gmail. Let AI triage, summarise, and route every email
-            — so you can focus on what actually matters.
+          <p className="text-white/60 text-sm leading-relaxed max-w-sm">
+            Connecting your account triggers automated email ingestion. AI strips away inbox noise, categorizes threads, extracts key commitments, and surfaces only what needs your action.
           </p>
 
           {/* Feature pills */}
-          <ul className="flex flex-col gap-3 pt-2">
+          <ul className="flex flex-col gap-3.5 pt-2">
             {[
-              { icon: "✦", label: "Smart triage & auto-categorisation" },
-              { icon: "✦", label: "Multi-model summarisation pipeline" },
-              { icon: "✦", label: "Workflow triggers & task generation" },
+              { icon: "✦", label: "Automated Email Ingestion & Fact Extraction", sub: "Scans incoming threads to extract tasks, commitments, and deadlines automatically." },
+              { icon: "✦", label: "Noise Reduction & SLA Workflow Tracking", sub: "Filter chatter and monitor active deadlines (Needs Action, Awaiting Reply, Follow Up >48h SLA breach)." },
+              { icon: "✦", label: "User-Controlled Task Resolution", sub: "Surface extracted action items while keeping task execution completely under your control." },
             ].map((f) => (
               <li
                 key={f.label}
-                className="flex items-center gap-3 text-sm text-white/60"
+                className="flex items-start gap-3 text-xs"
               >
-                <span className="text-[#8b7cf8] text-xs">{f.icon}</span>
-                {f.label}
+                <span className="text-[#8b7cf8] text-sm mt-0.5 shrink-0">{f.icon}</span>
+                <div>
+                  <span className="text-white/80 font-semibold block mb-0.5">{f.label}</span>
+                  <span className="text-white/40 text-[11px] leading-normal block">{f.sub}</span>
+                </div>
               </li>
             ))}
           </ul>
         </div>
 
         {/* Bottom quote */}
-        <p className="relative z-10 text-xs text-white/25 tracking-wide">
-          © {new Date().getFullYear()} InboxOrchestrator AI
+        <p className="relative z-10 text-xs text-white/30 tracking-wide">
+          © {new Date().getFullYear()} InboxOrchestrator AI — Personal Open-Source Project
         </p>
 
         <style>{`
@@ -150,38 +119,8 @@ export default function AuthLayout({
       {/* ── Right form panel ── */}
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0e1117] px-6 py-12 lg:px-16">
         {/* Mobile logo */}
-        <div className="mb-8 flex lg:hidden items-center gap-2.5">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 28 28"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect width="28" height="28" rx="8" fill="url(#logoGradMobile)" />
-            <path
-              d="M6 10l8 5 8-5M6 10v8l8 5 8-5V10"
-              stroke="#fff"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-            <defs>
-              <linearGradient
-                id="logoGradMobile"
-                x1="0"
-                y1="0"
-                x2="28"
-                y2="28"
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop stopColor="#6d5bfa" />
-                <stop offset="1" stopColor="#46d3e5" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span className="text-white font-semibold text-[15px] tracking-tight">
-            InboxOrchestrator <span className="text-[#8b7cf8]">AI</span>
-          </span>
+        <div className="mb-8 flex lg:hidden items-center">
+          <AppLogo size={32} showText={true} href="/" />
         </div>
 
         <div className="w-full max-w-sm">{children}</div>
