@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   Search,
@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
-import { useThreads } from "@/features/threads/use-threads";
+import { useThreadsContext } from "@/features/threads/threads-context";
 import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/threads/use-thread-details";
 import { useDraftComposer } from "@/features/threads/use-draft-composer";
 import { DraftComposerDrawer } from "@/features/threads/components/DraftComposerDrawer";
@@ -238,6 +238,7 @@ export default function ThreadsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { selectedAccount } = useAuth();
+  const { refetchThreads, updateThreadInList } = useThreadsContext();
 
   const activeThreadId = params?.threadId as string | undefined;
   const targetEmailId = searchParams?.get("email") ?? null;
@@ -263,6 +264,11 @@ export default function ThreadsPage() {
     activeThreadId
   );
 
+  const refreshAll = useCallback(() => {
+    refresh();
+    refetchThreads();
+  }, [refresh, refetchThreads]);
+
   const activeThread = threadDetail?.thread ?? null;
   const emails = threadDetail?.emails ?? [];
   const pendingTasksList = threadDetail?.tasks?.filter(t => t.status === "pending") ?? [];
@@ -277,7 +283,7 @@ export default function ThreadsPage() {
     lastSenderEmail,
     replyToEmailId: lastEmailId,
     pendingTasks: pendingTasksList,
-    onSuccess: refresh,
+    onSuccess: refreshAll,
   });
 
   // Participant profiles extraction
@@ -338,7 +344,10 @@ export default function ThreadsPage() {
       });
       toast.success("Thread archived successfully");
       setArchiveModalOpen(false);
-      refresh();
+      if (updateThreadInList) {
+        updateThreadInList(activeThreadId, { workflow_status: "archived" });
+      }
+      refreshAll();
     } catch (err) {
       console.error("Failed to archive thread:", err);
       toast.error("Failed to archive thread");
@@ -359,7 +368,10 @@ export default function ThreadsPage() {
       const label = workflowLabel[newStatus as WorkflowStatus] || newStatus;
       toast.success(`Thread unarchived to '${label}'`);
       setUnarchiveModalOpen(false);
-      refresh();
+      if (updateThreadInList) {
+        updateThreadInList(activeThreadId, { workflow_status: newStatus as WorkflowStatus });
+      }
+      refreshAll();
     } catch (err) {
       console.error("Failed to unarchive thread:", err);
       toast.error("Failed to unarchive thread");
@@ -614,6 +626,7 @@ export default function ThreadsPage() {
                     if (generatingSummary) return;
                     try {
                       await generateSummary();
+                      refetchThreads();
                     } catch (err) {
                       console.error("Summary generation error:", err);
                     }
@@ -656,6 +669,7 @@ export default function ThreadsPage() {
                           if (generatingSummary) return;
                           try {
                             await generateSummary();
+                            refetchThreads();
                           } catch (err) {
                             console.error("Summary generation error:", err);
                           }

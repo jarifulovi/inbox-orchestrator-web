@@ -122,6 +122,12 @@ export function useThreads(
     }
   }, [accountId, syncing, authLoading, fetchThreads]);
 
+  const updateThreadInList = useCallback((threadId: string, updates: Partial<Thread>) => {
+    setThreads((prev) =>
+      prev.map((t) => (t.id === threadId ? { ...t, ...updates } : t))
+    );
+  }, []);
+
   return {
     threads,
     loading,
@@ -130,6 +136,8 @@ export function useThreads(
     loadMore,
     syncing,
     syncInbox,
+    updateThreadInList,
     refetch: () => fetchThreads(0, false),
   };
 }
+

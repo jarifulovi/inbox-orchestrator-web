@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/threads/use-threads";
 import { Thread, WorkflowStatus } from "@/features/threads/types";
 import { getInitial, getAvatarColor, formatTime } from "@/features/threads/utils";
+import { ThreadsProvider } from "@/features/threads/threads-context";
 
 const workflowLabel: Record<WorkflowStatus, string> = {
   needs_action: "Needs Action",
@@ -124,6 +125,8 @@ export default function ThreadsLayout({
     loadingMore,
     hasMore,
     loadMore,
+    refetch,
+    updateThreadInList,
   } = useThreads(selectedAccount?.id, threadFilters, authLoading);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
@@ -169,70 +172,72 @@ export default function ThreadsLayout({
   }
 
   return (
-    <div className="h-[calc(100vh-56px)] w-full flex overflow-hidden bg-[#0e1117]">
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* PERSISTENT LEFT PANEL — Thread list (Never unmounts on navigation)  */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="w-[280px] shrink-0 border-r border-white/[0.06] flex flex-col h-full">
-        {/* Search bar */}
-        <div className="px-3 py-3 border-b border-white/[0.06]">
-          <div className="relative">
-            <Search className="size-3.5 text-white/25 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search threads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-2 text-xs text-white/70 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/40"
-            />
+    <ThreadsProvider refetchThreads={refetch} updateThreadInList={updateThreadInList}>
+      <div className="h-[calc(100vh-56px)] w-full flex overflow-hidden bg-[#0e1117]">
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* PERSISTENT LEFT PANEL — Thread list (Never unmounts on navigation)  */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        <div className="w-[280px] shrink-0 border-r border-white/[0.06] flex flex-col h-full">
+          {/* Search bar */}
+          <div className="px-3 py-3 border-b border-white/[0.06]">
+            <div className="relative">
+              <Search className="size-3.5 text-white/25 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search threads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-2 text-xs text-white/70 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/40"
+              />
+            </div>
+          </div>
+
+          {/* Thread list scroll */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2 space-y-0.5">
+            {loadingThreads ? (
+              <div className="text-center py-10 flex flex-col items-center gap-2">
+                <div className="size-5 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-white/30">Loading threads...</span>
+              </div>
+            ) : threads.length === 0 ? (
+              <div className="text-center py-10">
+                <Mail className="size-8 text-white/10 mx-auto mb-2" />
+                <p className="text-xs text-white/25">No threads found</p>
+              </div>
+            ) : (
+              <>
+                {threads.map((t) => (
+                  <ThreadListItem
+                    key={t.id}
+                    thread={t}
+                    isActive={t.id === activeThreadId}
+                    onClick={() => selectThread(t.id)}
+                  />
+                ))}
+
+                {/* Infinite Scroll Sentinel */}
+                {!loadingThreads && hasMore && (
+                  <div ref={observerTarget} className="h-12 flex items-center justify-center pt-2">
+                    {loadingMore && (
+                      <div className="flex items-center gap-2">
+                        <div className="size-4 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-white/40 text-[10px]">Loading more...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Thread list scroll */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2 space-y-0.5">
-          {loadingThreads ? (
-            <div className="text-center py-10 flex flex-col items-center gap-2">
-              <div className="size-5 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-white/30">Loading threads...</span>
-            </div>
-          ) : threads.length === 0 ? (
-            <div className="text-center py-10">
-              <Mail className="size-8 text-white/10 mx-auto mb-2" />
-              <p className="text-xs text-white/25">No threads found</p>
-            </div>
-          ) : (
-            <>
-              {threads.map((t) => (
-                <ThreadListItem
-                  key={t.id}
-                  thread={t}
-                  isActive={t.id === activeThreadId}
-                  onClick={() => selectThread(t.id)}
-                />
-              ))}
-
-              {/* Infinite Scroll Sentinel */}
-              {!loadingThreads && hasMore && (
-                <div ref={observerTarget} className="h-12 flex items-center justify-center pt-2">
-                  {loadingMore && (
-                    <div className="flex items-center gap-2">
-                      <div className="size-4 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-white/40 text-[10px]">Loading more...</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* MIDDLE & RIGHT PANELS — Children route views                       */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        <div className="flex-1 min-w-0 flex h-full">
+          {children}
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* MIDDLE & RIGHT PANELS — Children route views                       */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 flex h-full">
-        {children}
-      </div>
-    </div>
+    </ThreadsProvider>
   );
 }
