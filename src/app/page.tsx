@@ -21,6 +21,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/components/shared/logo";
 
 /* ── Features data (Strictly aligned with actual feature_alignment.md) ────── */
 const features = [
@@ -117,16 +118,7 @@ export default function Home() {
       {/* ── Navbar Header ─────────────────────────────────────────────────── */}
       <nav className="relative z-20 flex items-center justify-between px-6 md:px-12 py-4 border-b border-white/[0.06] backdrop-blur-md bg-[#0b0d11]/80">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-[#6d5bfa] to-[#46d3e5] p-0.5 flex items-center justify-center shadow-lg shadow-[#6d5bfa]/20 group-hover:scale-105 transition-transform duration-200">
-            <div className="size-full bg-[#0b0d11] rounded-[6px] flex items-center justify-center">
-              <Mail className="size-4 text-[#46d3e5]" />
-            </div>
-          </div>
-          <span className="font-bold text-base tracking-tight">
-            InboxOrchestrator <span className="text-[#8b7cf8]">AI</span>
-          </span>
-        </Link>
+        <AppLogo size={32} showText={true} href="/" />
 
         {/* Upper Header Actions: Sign In & Register */}
         <div className="flex items-center gap-3">
@@ -397,12 +389,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-white/[0.06] text-xs">
           {/* Col 1: Brand Info */}
           <div className="space-y-3 md:col-span-1">
-            <div className="flex items-center gap-2 font-bold text-white text-sm">
-              <div className="size-6 rounded bg-gradient-to-br from-[#6d5bfa] to-[#46d3e5] flex items-center justify-center">
-                <Mail className="size-3.5 text-white" />
-              </div>
-              <span>InboxOrchestrator <span className="text-[#8b7cf8]">AI</span></span>
-            </div>
+            <AppLogo size={28} showText={true} href="/" />
             <p className="text-white/40 leading-relaxed">
               AI-driven inbox management, action item extraction, and SLA lifecycle monitoring engine.
             </p>

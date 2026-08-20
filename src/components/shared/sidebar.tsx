@@ -54,41 +54,14 @@ export default function Sidebar() {
 
       {/* Logo */}
       <div className="relative z-10 px-5 py-6 flex items-center h-[76px] shrink-0">
-        <div className="flex items-center gap-3">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 28 28"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="shrink-0"
-          >
-            <rect width="28" height="28" rx="8" fill="url(#sidebarLogoGrad)" />
-            <path
-              d="M6 10l8 5 8-5M6 10v8l8 5 8-5V10"
-              stroke="#fff"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-            <defs>
-              <linearGradient
-                id="sidebarLogoGrad"
-                x1="0"
-                y1="0"
-                x2="28"
-                y2="28"
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop stopColor="#6d5bfa" />
-                <stop offset="1" stopColor="#46d3e5" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span className="text-white font-semibold text-[15px] tracking-tight opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300 w-0 group-hover:w-auto">
-            InboxOrchestrator{" "}
-            <span className="text-[#8b7cf8]">AI</span>
+        <Link href="/dashboard/inbox" className="flex items-center gap-3">
+          <div className="size-7 rounded-lg overflow-hidden shadow-lg shadow-[#6d5bfa]/20 border border-white/10 shrink-0">
+            <img src="/logo.png" alt="Logo" className="object-cover size-full" />
+          </div>
+          <span className="text-white font-extrabold text-[15px] tracking-tight opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-300 w-0 group-hover:w-auto">
+            InboxOrchestrator <span className="text-[#8b7cf8]">AI</span>
           </span>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
