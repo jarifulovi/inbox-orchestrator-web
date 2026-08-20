@@ -450,7 +450,7 @@ function TaskCard({
 }
 
 export default function TasksPage() {
-  const { selectedAccount } = useAuth();
+  const { selectedAccount, loading: authLoading } = useAuth();
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterLabel, setFilterLabel] = useState<IntentLabel | "all">("all");
@@ -573,8 +573,8 @@ export default function TasksPage() {
     loadingMore,
     hasMore,
     loadMore,
-    refresh,
-  } = useTasks(selectedAccount?.id, filters);
+    refetch: refresh,
+  } = useTasks(selectedAccount?.id, filters, authLoading);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 

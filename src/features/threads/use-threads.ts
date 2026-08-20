@@ -4,7 +4,8 @@ import { Thread } from "./types";
 
 export function useThreads(
   accountId: string | undefined,
-  filters?: { status?: string; priority?: string; q?: string }
+  filters?: { status?: string; priority?: string; q?: string },
+  authLoading: boolean = false
 ) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ export function useThreads(
 
   const fetchThreads = useCallback(
     async (currentOffset: number, append: boolean, signal?: AbortSignal) => {
-      if (!accountId) return;
+      if (authLoading || !accountId) return;
       try {
         let url = `/emails/threads?account_id=${accountId}&limit=${LIMIT}&offset=${currentOffset}`;
         if (filters?.status && filters.status !== "all") {
@@ -40,35 +41,51 @@ export function useThreads(
 
         // If returned threads count is less than the limit, we hit the end of the inbox
         setHasMore(newThreads.length === LIMIT);
-      } catch (err: unknown) {
+      } catch (err: any) {
         if (
-          (err as { name?: string })?.name === "CanceledError" ||
-          (err as { name?: string })?.name === "AbortError"
+          err?.name === "CanceledError" ||
+          err?.name === "AbortError"
         ) {
+          return;
+        }
+        if (err?.response?.status === 401) {
+          // Retry after transient auth token restoration
+          setTimeout(() => {
+            fetchThreads(currentOffset, append, signal);
+          }, 400);
           return;
         }
         console.error("Failed to fetch threads:", err);
       }
     },
-    [accountId, filters?.status, filters?.priority, filters?.q]
+    [accountId, authLoading, filters?.status, filters?.priority, filters?.q]
   );
 
   // Initial load or account/filter switch with AbortController cancellation
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
+
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!accountId) {
+      setThreads([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setOffset(0);
     setHasMore(true);
 
     async function initFetch() {
-      if (!accountId) {
-        setThreads([]);
-        setLoading(false);
-        return;
-      }
       await fetchThreads(0, false, controller.signal);
-      if (mounted) setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     }
 
     initFetch();
@@ -77,35 +94,33 @@ export function useThreads(
       mounted = false;
       controller.abort();
     };
-  }, [accountId, fetchThreads]);
+  }, [accountId, authLoading, fetchThreads]);
 
-  const loadMore = async () => {
-    if (loading || loadingMore || !hasMore || !accountId) return;
+  // Load next page function
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || !accountId || authLoading) return;
+
     setLoadingMore(true);
     const nextOffset = offset + LIMIT;
-    await fetchThreads(nextOffset, true);
     setOffset(nextOffset);
+
+    await fetchThreads(nextOffset, true);
     setLoadingMore(false);
-  };
+  }, [loading, loadingMore, hasMore, accountId, authLoading, offset, fetchThreads]);
 
-  const refresh = async () => {
-    setOffset(0);
-    setHasMore(true);
-    await fetchThreads(0, false);
-  };
-
-  const syncInbox = async () => {
-    if (!accountId) return;
+  // Sync inbox background worker trigger
+  const syncInbox = useCallback(async () => {
+    if (!accountId || syncing || authLoading) return;
     setSyncing(true);
     try {
-      await api.post(`/emails/sync?account_id=${accountId}`);
-      await refresh();
+      await api.post(`/emails/threads/sync?account_id=${accountId}`);
+      await fetchThreads(0, false);
     } catch (err) {
-      console.error("Failed to sync inbox:", err);
+      console.error("Failed to trigger inbox sync:", err);
     } finally {
       setSyncing(false);
     }
-  };
+  }, [accountId, syncing, authLoading, fetchThreads]);
 
   return {
     threads,
@@ -113,8 +128,8 @@ export function useThreads(
     loadingMore,
     hasMore,
     loadMore,
-    refresh,
     syncing,
     syncInbox,
+    refetch: () => fetchThreads(0, false),
   };
 }

@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/axios";
 import { Task, TaskFilters, TasksResponse } from "./types";
 
-export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
+export function useTasks(
+  accountId: string | undefined,
+  filters?: TaskFilters,
+  authLoading: boolean = false
+) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
@@ -14,7 +18,7 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
 
   const fetchTasks = useCallback(
     async (currentOffset: number, append: boolean) => {
-      if (!accountId) return;
+      if (authLoading || !accountId) return;
       try {
         const queryParams = new URLSearchParams({
           account_id: accountId,
@@ -49,15 +53,22 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
           setTasks(newTasks);
         }
 
-        setTotalCount(res.data.total_count ?? 0);
-        setPendingCount(res.data.pending_count ?? 0);
+        setTotalCount(res.data.total_count || 0);
+        setPendingCount(res.data.pending_count || 0);
         setHasMore(newTasks.length === LIMIT);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          setTimeout(() => {
+            fetchTasks(currentOffset, append);
+          }, 400);
+          return;
+        }
         console.error("Failed to fetch tasks:", err);
       }
     },
     [
       accountId,
+      authLoading,
       filters?.priority,
       filters?.status,
       filters?.intent_label,
@@ -66,23 +77,32 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
     ]
   );
 
-  // Re-fetch when accountId or filters change
+  // Initial load or filter/account change
   useEffect(() => {
     let mounted = true;
+
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!accountId) {
+      setTasks([]);
+      setTotalCount(0);
+      setPendingCount(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setOffset(0);
     setHasMore(true);
 
     async function initFetch() {
-      if (!accountId) {
-        setTasks([]);
-        setTotalCount(0);
-        setPendingCount(0);
-        setLoading(false);
-        return;
-      }
       await fetchTasks(0, false);
-      if (mounted) setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     }
 
     initFetch();
@@ -90,22 +110,19 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
     return () => {
       mounted = false;
     };
-  }, [accountId, fetchTasks]);
+  }, [accountId, authLoading, fetchTasks]);
 
-  const loadMore = async () => {
-    if (loading || loadingMore || !hasMore || !accountId) return;
+  // Load next page function
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || !accountId || authLoading) return;
+
     setLoadingMore(true);
     const nextOffset = offset + LIMIT;
-    await fetchTasks(nextOffset, true);
     setOffset(nextOffset);
-    setLoadingMore(false);
-  };
 
-  const refresh = async () => {
-    setOffset(0);
-    setHasMore(true);
-    await fetchTasks(0, false);
-  };
+    await fetchTasks(nextOffset, true);
+    setLoadingMore(false);
+  }, [loading, loadingMore, hasMore, accountId, authLoading, offset, fetchTasks]);
 
   return {
     tasks,
@@ -115,6 +132,6 @@ export function useTasks(accountId: string | undefined, filters?: TaskFilters) {
     loadingMore,
     hasMore,
     loadMore,
-    refresh,
+    refetch: () => fetchTasks(0, false),
   };
 }

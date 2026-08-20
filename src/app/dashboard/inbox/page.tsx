@@ -213,10 +213,10 @@ function ThreadRow({ thread }: { thread: Thread }) {
 }
 
 export default function InboxPage() {
-  const { selectedAccount } = useAuth();
+  const { selectedAccount, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const qParam = searchParams.get("q");
-  
+
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -255,7 +255,7 @@ export default function InboxPage() {
     loadMore,
     syncing,
     syncInbox,
-  } = useThreads(selectedAccount?.id, threadFilters);
+  } = useThreads(selectedAccount?.id, threadFilters, authLoading);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 

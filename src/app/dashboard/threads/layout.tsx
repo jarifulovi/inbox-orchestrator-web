@@ -95,7 +95,7 @@ export default function ThreadsLayout({
 }) {
   const params = useParams();
   const router = useRouter();
-  const { selectedAccount } = useAuth();
+  const { selectedAccount, loading: authLoading } = useAuth();
 
   const activeThreadId = params?.threadId as string | undefined;
 
@@ -124,7 +124,7 @@ export default function ThreadsLayout({
     loadingMore,
     hasMore,
     loadMore,
-  } = useThreads(selectedAccount?.id, threadFilters);
+  } = useThreads(selectedAccount?.id, threadFilters, authLoading);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 
