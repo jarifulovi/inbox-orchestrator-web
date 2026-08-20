@@ -41,7 +41,7 @@ import { useDraftComposer } from "@/features/threads/use-draft-composer";
 import { DraftComposerDrawer } from "@/features/threads/components/DraftComposerDrawer";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
 import { Task } from "@/features/tasks/types";
-import { EmailContentView } from "@/components/common/email-content-view";
+import { EmailContentView } from "@/features/threads/components/email-content-view";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import {
