@@ -99,6 +99,16 @@ export function TaskCalendarView({
     return { tasksByDate: map, unscheduledTasks: unscheduled };
   }, [tasks]);
 
+  // Derive all tasks scheduled on the same date as selectedTask for in-modal switching
+  const sameDayTasks = useMemo(() => {
+    if (!selectedTask) return [];
+    if (!selectedTask.due_date) return [selectedTask];
+    const d = new Date(selectedTask.due_date);
+    if (isNaN(d.getTime())) return [selectedTask];
+    const dateKey = d.toISOString().slice(0, 10);
+    return tasksByDate[dateKey] || [selectedTask];
+  }, [selectedTask, tasksByDate]);
+
   const handleSyncToGoogleCalendar = async (task: Task) => {
     if (!selectedAccount?.id) {
       toast.error("No active account selected");
@@ -231,38 +241,53 @@ export function TaskCalendarView({
                       : "bg-white/[0.02] border-white/[0.05] hover:border-white/10"
                   }`}
                 >
-                  {/* Day Number */}
-                  <div className="flex items-center justify-between mb-1.5">
+                  {/* Day Number Header */}
+                  <div
+                    onClick={() => {
+                      if (cell.tasks.length > 0) setSelectedTask(cell.tasks[0]);
+                    }}
+                    className={`flex items-center justify-between mb-1.5 ${
+                      cell.tasks.length > 0 ? "cursor-pointer group/header" : ""
+                    }`}
+                  >
                     <span
                       className={`text-xs font-bold ${
                         cell.isToday
                           ? "bg-[#6d5bfa] text-white size-5 rounded-full flex items-center justify-center"
-                          : "text-white/70"
+                          : "text-white/70 group-hover/header:text-white"
                       }`}
                     >
                       {cell.dayNum}
                     </span>
                     {cell.tasks.length > 0 && (
-                      <span className="text-[10px] text-white/30 font-medium">
-                        {cell.tasks.length}
+                      <span className="text-[10px] text-[#8b7cf8] bg-[#6d5bfa]/10 px-1.5 py-0.2 rounded-full font-medium">
+                        {cell.tasks.length} task{cell.tasks.length > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
 
-                  {/* Cell Task Pills */}
-                  <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                    {cell.tasks.map((task) => {
+                  {/* Cell Task Pills (Max 2 visible) */}
+                  <div className="space-y-1 overflow-hidden">
+                    {cell.tasks.slice(0, 2).map((task) => {
                       const colors = intentColors[task.intent_label] || intentColors.other;
                       return (
                         <button
                           key={task.id}
                           onClick={() => setSelectedTask(task)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-all ${colors.bg} ${colors.text} ${colors.border} hover:scale-[1.02]`}
+                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-colors ${colors.bg} ${colors.text} ${colors.border} hover:brightness-125`}
                         >
                           {task.title}
                         </button>
                       );
                     })}
+                    {cell.tasks.length > 2 && (
+                      <button
+                        onClick={() => setSelectedTask(cell.tasks[2])}
+                        className="w-full text-left px-1.5 py-0.5 rounded text-[10px] font-medium text-white/50 bg-white/5 hover:bg-white/10 hover:text-white/80 transition-colors truncate"
+                      >
+                        +{cell.tasks.length - 2} more...
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -320,6 +345,30 @@ export function TaskCalendarView({
         <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
           <DialogContent className="sm:max-w-md bg-[#161921] border-white/10 text-white shadow-2xl p-6">
             <DialogHeader className="text-left">
+              {/* Task Selector Dropdown for days with multiple tasks */}
+              {sameDayTasks.length > 1 && (
+                <div className="mb-3 p-2 rounded-lg bg-white/5 border border-white/10">
+                  <label className="block text-[11px] font-medium text-white/60 mb-1 flex items-center justify-between">
+                    <span>Tasks Scheduled for this Date ({sameDayTasks.length}):</span>
+                    <span className="text-[#8b7cf8] font-normal text-[10px]">Switch selection below</span>
+                  </label>
+                  <select
+                    value={selectedTask.id}
+                    onChange={(e) => {
+                      const found = sameDayTasks.find((t) => t.id === e.target.value);
+                      if (found) setSelectedTask(found);
+                    }}
+                    className="w-full bg-[#161921] border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]"
+                  >
+                    {sameDayTasks.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title} ({intentLabels[t.intent_label] || t.intent_label})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 mb-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${intentColors[selectedTask.intent_label]?.bg || intentColors.other.bg} ${intentColors[selectedTask.intent_label]?.text || intentColors.other.text} ${intentColors[selectedTask.intent_label]?.border || intentColors.other.border}`}>
                   {intentLabels[selectedTask.intent_label] || selectedTask.intent_label}
