@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   CheckSquare,
   Clock,
@@ -21,6 +22,7 @@ import {
   User,
   Search,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import {
   Dialog,
@@ -41,6 +43,7 @@ import { api } from "@/lib/axios";
 import { useAuth } from "@/features/auth/auth-context";
 import { useTasks } from "@/features/tasks/use-tasks";
 import { formatDueDate, isOverdue } from "@/features/tasks/utils";
+import { TaskCalendarView } from "@/features/tasks/components/TaskCalendarView";
 
 const statusConfig: Record<
   TaskStatus,
@@ -87,9 +90,47 @@ function TaskCard({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
+  const { selectedAccount } = useAuth();
   const [localStatus, setLocalStatus] = useState<TaskStatus>(task.status);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSyncingGCal, setIsSyncingGCal] = useState(false);
+
+  const handleSyncGCal = async () => {
+    if (!selectedAccount?.id) {
+      toast.error("No active account selected");
+      return;
+    }
+    setIsSyncingGCal(true);
+    try {
+      const res = await api.post(`/emails/tasks/${task.id}/gcal-sync?account_id=${selectedAccount.id}`);
+      const data = res.data;
+      if (data.status === "permission_required") {
+        toast.error("Google Calendar Scope Required", {
+          description: data.message || "Please re-connect your Google account in Settings to grant calendar permissions.",
+        });
+      } else if (data.status === "success") {
+        toast.success("Exported to Google Calendar!", {
+          description: "Event created successfully.",
+          action: data.event_url
+            ? {
+                label: "View Event",
+                onClick: () => window.open(data.event_url, "_blank"),
+              }
+            : undefined,
+        });
+      } else {
+        toast.error("Sync Failed", { description: data.message || "Could not sync task to calendar." });
+      }
+    } catch (err: unknown) {
+      console.error("Google Calendar Sync error:", err);
+      toast.error("Google Calendar Sync Error", {
+        description: "Failed to connect to Google Calendar. Make sure calendar scopes are granted.",
+      });
+    } finally {
+      setIsSyncingGCal(false);
+    }
+  };
 
   // Edit fields state
   const [editTitle, setEditTitle] = useState(task.title);
@@ -257,6 +298,20 @@ function TaskCard({
               Resolve
             </button>
           )}
+
+          <button
+            onClick={handleSyncGCal}
+            disabled={isSyncingGCal}
+            className="px-3 py-1.5 text-[11px] font-medium bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            title="Export task to Google Calendar"
+          >
+            {isSyncingGCal ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <ExternalLink className="size-3.5 text-amber-400" />
+            )}
+            Sync Calendar
+          </button>
 
           <button
             onClick={() => setEditModalOpen(true)}
@@ -674,24 +729,25 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-        <div className="flex items-center gap-2 text-white/30 px-2">
-          <Filter className="size-4" />
-          <span className="text-sm font-medium">Filters:</span>
-        </div>
+      {/* Filters Bar (List View Only) */}
+      {viewMode === "list" && (
+        <div className="flex flex-wrap items-center gap-3 p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+          <div className="flex items-center gap-2 text-white/30 px-2">
+            <Filter className="size-4" />
+            <span className="text-sm font-medium">Filters:</span>
+          </div>
 
-        {/* Priority Filter */}
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value as TaskPriority | "all")}
-          className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
-        >
-          <option value="all">All Priorities</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
+          {/* Priority Filter */}
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value as TaskPriority | "all")}
+            className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
+          >
+            <option value="all">All Priorities</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
 
         {/* Status Filter */}
         <select
@@ -738,6 +794,7 @@ export default function TasksPage() {
           <span className="text-sm text-white/70">Deadline Crossed</span>
         </label>
       </div>
+      )}
 
       {/* Main Content Area */}
       {viewMode === "list" ? (
@@ -783,19 +840,7 @@ export default function TasksPage() {
           )}
         </div>
       ) : (
-        <div className="glass-card rounded-xl px-6 py-24 text-center border-dashed border-2 border-white/10">
-          <CalendarDays className="size-12 text-white/10 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white/70 mb-2">Timeline View</h3>
-          <p className="text-white/40 text-sm max-w-sm mx-auto">
-            The calendar and timeline view is currently under construction. Please use the List view for now.
-          </p>
-          <button
-            onClick={() => setViewMode("list")}
-            className="mt-6 px-4 py-2 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] rounded-lg text-sm font-medium transition-colors"
-          >
-            Switch to List View
-          </button>
-        </div>
+        <TaskCalendarView tasks={fetchedTasks} onTaskUpdated={refresh} />
       )}
 
       {/* Create Task Modal */}
