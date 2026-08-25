@@ -37,8 +37,8 @@ import {
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreadsContext } from "@/features/threads/threads-context";
 import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/threads/use-thread-details";
-import { useDraftComposer } from "@/features/threads/use-draft-composer";
-import { DraftComposerDrawer } from "@/features/threads/components/DraftComposerDrawer";
+import { useDraftComposer } from "@/features/drafts/use-draft-composer";
+import { DraftComposerDrawer } from "@/features/drafts/components/DraftComposerDrawer";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
 import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/features/threads/components/email-content-view";

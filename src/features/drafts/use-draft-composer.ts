@@ -1,30 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Task } from "@/features/tasks/types";
 import { api } from "@/lib/axios";
-
-export interface ActiveDraft {
-  id: string;
-  thread_id: string;
-  recipient_to: string[];
-  subject: string | null;
-  body: string | null;
-  status: string;
-  gmail_draft_id: string | null;
-  generation_context: Record<string, unknown> | null;
-  resolved_task_ids: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UseDraftComposerOptions {
-  accountId?: string;
-  threadId?: string;
-  threadSubject?: string;
-  lastSenderEmail?: string;
-  replyToEmailId?: string;
-  pendingTasks?: Task[];
-  onSuccess?: () => void;
-}
+import { ActiveDraft, UseDraftComposerOptions } from "./types";
 
 export function useDraftComposer(options: UseDraftComposerOptions = {}) {
   const {
@@ -241,7 +218,6 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
           payload
         );
 
-        // Update local active draft state
         if (res.data?.data) {
           setActiveDraft(res.data.data);
         }
@@ -265,7 +241,6 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
           payload
         );
 
-        // Track the newly created draft as active
         if (res.data?.data) {
           setActiveDraft(res.data.data);
           setActiveDraftId(res.data.data.id);
@@ -312,10 +287,9 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
       }
 
       setStatusMessage("Message sent successfully.");
-      // Clear active draft after sending
       setActiveDraft(null);
       setActiveDraftId(null);
-      fetchedThreadRef.current = null; // Allow re-fetch
+      fetchedThreadRef.current = null;
       setIsOpen(false);
       if (onSuccess) onSuccess();
     } catch (err) {

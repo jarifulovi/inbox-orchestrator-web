@@ -15,37 +15,7 @@ import {
   Loader2,
   PenSquare,
 } from "lucide-react";
-import { Task } from "@/features/tasks/types";
-
-export interface DraftComposerDrawerProps {
-  isOpen: boolean;
-  isMinimized: boolean;
-  recipientTo: string;
-  subject: string;
-  selectedTaskIds: Set<string>;
-  aiInstructions: string;
-  selectedTone: string;
-  draftBody: string;
-  isGenerating: boolean;
-  isSaving: boolean;
-  statusMessage: string | null;
-  pendingTasks: Task[];
-  // Handlers
-  onRecipientChange: (val: string) => void;
-  onSubjectChange: (val: string) => void;
-  onAiInstructionsChange: (val: string) => void;
-  onToneChange: (tone: string) => void;
-  onDraftBodyChange: (val: string) => void;
-  onToggleTask: (taskId: string) => void;
-  onToggleAllTasks: () => void;
-  onGenerateAI: () => void;
-  onQuickRefine: (refinementType: string) => void;
-  onSaveDraft: () => void;
-  onSendEmail: () => void;
-  onClose: () => void;
-  onToggleMinimize: () => void;
-  onDiscard: () => void;
-}
+import { DraftComposerDrawerProps } from "../types";
 
 const TONE_PRESETS = ["Professional", "Concise", "Friendly", "Urgent"];
 
@@ -111,7 +81,7 @@ export function DraftComposerDrawer({
           </div>
 
           {statusMessage && (
-            <span className="hidden sm:inline text-[11px] text-[#a79bfb] font-medium bg-[#8b7cf8]/10 px-2.5 py-0.5 rounded-full border border-[#8b7cf8]/20 animate-pulse">
+            <span className="hidden sm:inline text-[11px] text-[#a79bfb] font-medium bg-[#8b7cf8]/10 px-2.5 py-0.5 rounded-full border border-[#8b7cf8]/20 animate-[#8b7cf8]/20 animate-pulse">
               {statusMessage}
             </span>
           )}
