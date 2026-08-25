@@ -67,8 +67,8 @@ export function DraftComposerDrawer({
 
   return (
     <div
-      className={`absolute inset-x-0 bottom-0 top-0 z-30 flex flex-col bg-[#14161f]/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ${
-        isMinimized ? "h-12 top-auto" : "h-full"
+      className={`absolute inset-x-0 bottom-0 z-30 flex flex-col bg-[#14161f]/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-in-out ${
+        isMinimized ? "h-12" : "h-full"
       }`}
     >
       {/* ─── 1. COMPOSER HEADER BAR ────────────────────────────────────────── */}
