@@ -301,16 +301,22 @@ function TaskCard({
 
           <button
             onClick={handleSyncGCal}
-            disabled={isSyncingGCal}
-            className="px-3 py-1.5 text-[11px] font-medium bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            title="Export task to Google Calendar"
+            disabled={isSyncingGCal || task.status !== "pending"}
+            className={`px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+              task.status === "pending"
+                ? "bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 disabled:opacity-50"
+                : "bg-white/5 text-white/30 cursor-not-allowed border border-white/5"
+            }`}
+            title={task.status === "pending" ? "Export task to Google Calendar" : "Only pending tasks can be exported to Google Calendar"}
           >
             {isSyncingGCal ? (
               <Loader2 className="size-3.5 animate-spin" />
+            ) : task.status !== "pending" ? (
+              <CheckCircle2 className="size-3.5 text-emerald-400" />
             ) : (
               <ExternalLink className="size-3.5 text-amber-400" />
             )}
-            Sync Calendar
+            {task.status !== "pending" ? "Synced / Completed" : "Sync Calendar"}
           </button>
 
           <button

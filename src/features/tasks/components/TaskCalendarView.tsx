@@ -78,16 +78,29 @@ export function TaskCalendarView({
 
   const monthName = currentDate.toLocaleString("default", { month: "long" });
 
-  // Map tasks by date key (YYYY-MM-DD)
+  // Helper to construct local YYYY-MM-DD date key without UTC timezone shifts
+  const getLocalDateKey = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  // Filter tasks to include pending and completed only (exclude dismissed)
+  const visibleTasks = useMemo(() => {
+    return tasks.filter((t) => t.status === "pending" || t.status === "completed");
+  }, [tasks]);
+
+  // Map visible tasks by date key (YYYY-MM-DD)
   const { tasksByDate, unscheduledTasks } = useMemo(() => {
     const map: Record<string, Task[]> = {};
     const unscheduled: Task[] = [];
 
-    tasks.forEach((t) => {
+    visibleTasks.forEach((t) => {
       if (t.due_date) {
         const d = new Date(t.due_date);
         if (!isNaN(d.getTime())) {
-          const key = d.toISOString().slice(0, 10);
+          const key = getLocalDateKey(d);
           if (!map[key]) map[key] = [];
           map[key].push(t);
           return;
@@ -97,7 +110,7 @@ export function TaskCalendarView({
     });
 
     return { tasksByDate: map, unscheduledTasks: unscheduled };
-  }, [tasks]);
+  }, [visibleTasks]);
 
   // Derive all tasks scheduled on the same date as selectedTask for in-modal switching
   const sameDayTasks = useMemo(() => {
@@ -105,11 +118,15 @@ export function TaskCalendarView({
     if (!selectedTask.due_date) return [selectedTask];
     const d = new Date(selectedTask.due_date);
     if (isNaN(d.getTime())) return [selectedTask];
-    const dateKey = d.toISOString().slice(0, 10);
+    const dateKey = getLocalDateKey(d);
     return tasksByDate[dateKey] || [selectedTask];
   }, [selectedTask, tasksByDate]);
 
   const handleSyncToGoogleCalendar = async (task: Task) => {
+    if (task.status !== "pending") {
+      toast.error("Invalid Sync Status", { description: "Only pending tasks can be exported to Google Calendar." });
+      return;
+    }
     if (!selectedAccount?.id) {
       toast.error("No active account selected");
       return;
@@ -156,7 +173,7 @@ export function TaskCalendarView({
     // Day cells
     for (let d = 1; d <= daysInMonth; d++) {
       const dayDate = new Date(year, month, d);
-      const dateKey = dayDate.toISOString().slice(0, 10);
+      const dateKey = getLocalDateKey(dayDate);
       const dayTasks = tasksByDate[dateKey] || [];
       const isToday =
         new Date().getDate() === d &&
@@ -270,11 +287,14 @@ export function TaskCalendarView({
                   <div className="space-y-1 overflow-hidden">
                     {cell.tasks.slice(0, 2).map((task) => {
                       const colors = intentColors[task.intent_label] || intentColors.other;
+                      const isDone = task.status === "completed";
                       return (
                         <button
                           key={task.id}
                           onClick={() => setSelectedTask(task)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-colors ${colors.bg} ${colors.text} ${colors.border} hover:brightness-125`}
+                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-colors ${colors.bg} ${colors.text} ${colors.border} hover:brightness-125 ${
+                            isDone ? "opacity-50 line-through" : ""
+                          }`}
                         >
                           {task.title}
                         </button>
@@ -308,6 +328,7 @@ export function TaskCalendarView({
             {unscheduledTasks.length > 0 ? (
               unscheduledTasks.map((task) => {
                 const colors = intentColors[task.intent_label] || intentColors.other;
+                const isDone = task.status === "completed";
                 return (
                   <div
                     key={task.id}
@@ -315,7 +336,7 @@ export function TaskCalendarView({
                     className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/20 transition-all cursor-pointer group"
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h4 className="text-xs font-medium text-white/80 group-hover:text-white truncate">
+                      <h4 className={`text-xs font-medium ${isDone ? "text-white/40 line-through" : "text-white/80 group-hover:text-white"} truncate`}>
                         {task.title}
                       </h4>
                     </div>
@@ -327,6 +348,11 @@ export function TaskCalendarView({
                       <span className={`badge-${task.priority.toLowerCase()} text-[9px] px-1.5 py-0.2 rounded uppercase`}>
                         {task.priority}
                       </span>
+                      {isDone && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">
+                          Completed
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -362,22 +388,31 @@ export function TaskCalendarView({
                   >
                     {sameDayTasks.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.title} ({intentLabels[t.intent_label] || t.intent_label})
+                        [{t.status === "completed" ? "Completed" : "Pending"}] {t.title} ({intentLabels[t.intent_label] || t.intent_label})
                       </option>
                     ))}
                   </select>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${intentColors[selectedTask.intent_label]?.bg || intentColors.other.bg} ${intentColors[selectedTask.intent_label]?.text || intentColors.other.text} ${intentColors[selectedTask.intent_label]?.border || intentColors.other.border}`}>
                   {intentLabels[selectedTask.intent_label] || selectedTask.intent_label}
                 </span>
                 <span className={`badge-${selectedTask.priority.toLowerCase()} text-xs font-semibold px-2 py-0.5 rounded-full uppercase`}>
                   {selectedTask.priority}
                 </span>
+                {selectedTask.status === "completed" ? (
+                  <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
+                    Completed
+                  </span>
+                ) : (
+                  <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-semibold">
+                    Pending
+                  </span>
+                )}
               </div>
-              <DialogTitle className="text-lg font-bold text-white leading-snug">
+              <DialogTitle className={`text-lg font-bold text-white leading-snug ${selectedTask.status === "completed" ? "line-through opacity-70" : ""}`}>
                 {selectedTask.title}
               </DialogTitle>
               <DialogDescription className="text-xs text-white/50 mt-1">
@@ -412,13 +447,22 @@ export function TaskCalendarView({
               {/* Sync to Google Calendar Button */}
               <button
                 onClick={() => handleSyncToGoogleCalendar(selectedTask)}
-                disabled={syncingGCalId === selectedTask.id}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-300 hover:text-amber-200 hover:bg-amber-500/30 font-medium text-xs transition-all disabled:opacity-50"
+                disabled={syncingGCalId === selectedTask.id || selectedTask.status !== "pending"}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedTask.status === "pending"
+                    ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-300 hover:text-amber-200 hover:bg-amber-500/30 disabled:opacity-50"
+                    : "bg-white/5 border border-white/10 text-white/40 cursor-not-allowed"
+                }`}
               >
                 {syncingGCalId === selectedTask.id ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
                     Exporting to Google Calendar...
+                  </>
+                ) : selectedTask.status !== "pending" ? (
+                  <>
+                    <CheckCircle2 className="size-4 text-emerald-400" />
+                    Task Completed — Sync Disabled
                   </>
                 ) : (
                   <>
