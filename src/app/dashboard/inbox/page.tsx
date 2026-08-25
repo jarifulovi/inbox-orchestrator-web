@@ -321,8 +321,7 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin p-6">
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Inactive Account Reconnect Banner */}
       {selectedAccount && !selectedAccount.is_active && (
         <div className="flex items-center justify-between p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
@@ -400,9 +399,9 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {/* Thread list */}
-      <div className="overflow-x-auto pb-4 scrollbar-thin">
-        <div className="min-w-[800px] space-y-2">
+      {/* Scrollable Thread List Viewport */}
+      <div className="max-h-[calc(100vh-230px)] overflow-y-auto custom-scrollbar pr-1.5 pb-6">
+        <div className="space-y-2">
           {loadingThreads ? (
             <div className="h-48 flex items-center justify-center">
               <div className="flex items-center gap-3">
@@ -436,7 +435,6 @@ export default function InboxPage() {
           )}
         </div>
       </div>
-    </div>
     </div>
   );
 }

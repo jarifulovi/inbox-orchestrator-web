@@ -193,11 +193,11 @@ function TaskCard({
 
   return (
     <>
-      <div className="glass-card rounded-xl px-5 py-4 transition-all duration-200 group">
-        <div className="flex items-start gap-4">
+      <div className="glass-card rounded-xl px-4 py-3 transition-all duration-200 group">
+        <div className="flex items-start gap-3">
           {/* Status icon */}
           <div
-            className={`mt-0.5 size-8 rounded-lg flex items-center justify-center shrink-0 ${
+            className={`mt-0.5 size-7 rounded-lg flex items-center justify-center shrink-0 ${
               displayStatus === "completed"
                 ? "bg-emerald-500/10"
                 : displayStatus === "pending"
@@ -206,7 +206,7 @@ function TaskCard({
             }`}
           >
             <CurrentStatusIcon
-              className={`size-4 ${
+              className={`size-3.5 ${
                 displayStatus === "completed"
                   ? "text-emerald-400"
                   : displayStatus === "pending"
@@ -218,7 +218,7 @@ function TaskCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1">
               <h3
                 className={`text-sm font-semibold truncate ${
                   displayStatus === "completed" || displayStatus === "dismissed"
@@ -230,13 +230,13 @@ function TaskCard({
               </h3>
             </div>
 
-            <div className="text-xs text-white/50 mb-3 truncate flex items-center gap-1.5">
+            <div className="text-xs text-white/50 mb-2 truncate flex items-center gap-1.5">
               <span className="text-white/30">from:</span>
               <span className="text-white/70 italic">{task.source_thread_subject}</span>
             </div>
 
             {/* Tags row */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {/* Source Badge */}
               {task.source === "manual" ? (
                 <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full font-medium">
@@ -287,12 +287,12 @@ function TaskCard({
           </div>
         </div>
 
-        {/* Actions Bar */}
-        <div className="mt-4 pt-3 border-t border-white/[0.04] flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+        {/* Compact Actions Bar */}
+        <div className="mt-2.5 pt-2 border-t border-white/[0.04] flex items-center justify-end gap-1.5 opacity-75 group-hover:opacity-100 transition-opacity">
           {displayStatus === "pending" && (
             <button
               onClick={() => setResolveModalOpen(true)}
-              className="px-3 py-1.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1.5 mr-auto"
+              className="px-2.5 py-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors flex items-center gap-1.5 mr-auto"
             >
               <CheckCircle2 className="size-3.5" />
               Resolve
@@ -302,7 +302,7 @@ function TaskCard({
           <button
             onClick={handleSyncGCal}
             disabled={isSyncingGCal || task.status !== "pending"}
-            className={`px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
               task.status === "pending"
                 ? "bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 disabled:opacity-50"
                 : "bg-white/5 text-white/30 cursor-not-allowed border border-white/5"
@@ -321,7 +321,7 @@ function TaskCard({
 
           <button
             onClick={() => setEditModalOpen(true)}
-            className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
+            className="px-2.5 py-1 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
           >
             <Edit3 className="size-3.5" />
             Edit
@@ -329,29 +329,20 @@ function TaskCard({
 
           <button
             onClick={() => setDeleteModalOpen(true)}
-            className="px-3 py-1.5 text-[11px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors flex items-center gap-1.5"
+            className="px-2.5 py-1 text-[11px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors flex items-center gap-1.5"
           >
             <Trash2 className="size-3.5" />
             Delete
           </button>
 
           {task.source_thread_id && (
-            <>
-              <Link
-                href={`/dashboard/threads/${task.source_thread_id}`}
-                className="px-3 py-1.5 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <Eye className="size-3.5" />
-                View
-              </Link>
-              <Link
-                href={`/dashboard/threads/${task.source_thread_id}`}
-                className="px-3 py-1.5 text-[11px] font-medium bg-[#6d5bfa]/10 text-[#8b7cf8] hover:bg-[#6d5bfa]/20 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <Reply className="size-3.5" />
-                Reply
-              </Link>
-            </>
+            <Link
+              href={`/dashboard/threads/${task.source_thread_id}`}
+              className="px-2.5 py-1 text-[11px] font-medium bg-white/5 text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Eye className="size-3.5" />
+              View Thread
+            </Link>
           )}
         </div>
       </div>
@@ -804,7 +795,7 @@ export default function TasksPage() {
 
       {/* Main Content Area */}
       {viewMode === "list" ? (
-        <div className="space-y-2 pb-6">
+        <div className="max-h-[calc(100vh-230px)] overflow-y-auto custom-scrollbar space-y-2.5 pr-1.5 pb-6">
           {loadingTasks ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (

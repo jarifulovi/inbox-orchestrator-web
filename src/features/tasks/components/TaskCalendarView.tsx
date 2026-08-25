@@ -244,7 +244,7 @@ export function TaskCalendarView({
           <div className="grid grid-cols-7 gap-1.5 auto-rows-fr">
             {calendarCells.map((cell) => {
               if (cell.type === "empty") {
-                return <div key={cell.key} className="min-h-[90px] bg-white/[0.01] rounded-lg border border-transparent" />;
+                return <div key={cell.key} className="h-[88px] bg-white/[0.01] rounded-lg border border-transparent" />;
               }
 
               if (cell.type !== "day") return null;
@@ -257,7 +257,7 @@ export function TaskCalendarView({
                   onClick={() => {
                     if (hasTasks) setSelectedTask(cell.tasks[0]);
                   }}
-                  className={`min-h-[90px] p-2 rounded-lg border flex flex-col justify-start text-left transition-all ${
+                  className={`h-[88px] p-2 rounded-lg border flex flex-col justify-between text-left transition-all overflow-hidden ${
                     hasTasks ? "cursor-pointer hover:bg-white/[0.05] hover:border-white/20 group" : ""
                   } ${
                     cell.isToday
@@ -266,7 +266,7 @@ export function TaskCalendarView({
                   }`}
                 >
                   {/* Day Number Header */}
-                  <div className="flex items-center justify-between mb-1.5 w-full">
+                  <div className="flex items-center justify-between mb-1 w-full">
                     <span
                       className={`text-xs font-bold ${
                         cell.isToday
@@ -283,25 +283,26 @@ export function TaskCalendarView({
                     )}
                   </div>
 
-                  {/* Cell Task Indicators (Max 2 visible, passive divs) */}
-                  <div className="space-y-1 overflow-hidden w-full">
-                    {cell.tasks.slice(0, 2).map((task) => {
-                      const colors = intentColors[task.intent_label] || intentColors.other;
-                      const isDone = task.status === "completed";
+                  {/* Cell Task Indicators (Max 1 Task + 1 More Indicator) */}
+                  <div className="space-y-1 overflow-hidden w-full flex-1 flex flex-col justify-end">
+                    {hasTasks && (() => {
+                      const firstTask = cell.tasks[0];
+                      const colors = intentColors[firstTask.intent_label] || intentColors.other;
+                      const isDone = firstTask.status === "completed";
                       return (
                         <div
-                          key={task.id}
+                          key={firstTask.id}
                           className={`w-full px-1.5 py-0.5 rounded text-[11px] font-medium border truncate ${colors.bg} ${colors.text} ${colors.border} ${
                             isDone ? "opacity-50 line-through" : ""
                           }`}
                         >
-                          {task.title}
+                          {firstTask.title}
                         </div>
                       );
-                    })}
-                    {cell.tasks.length > 2 && (
+                    })()}
+                    {cell.tasks.length > 1 && (
                       <div className="w-full px-1.5 py-0.5 rounded text-[10px] font-medium text-white/50 bg-white/5 truncate">
-                        +{cell.tasks.length - 2} more...
+                        +{cell.tasks.length - 1} more...
                       </div>
                     )}
                   </div>
