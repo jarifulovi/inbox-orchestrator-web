@@ -249,64 +249,60 @@ export function TaskCalendarView({
 
               if (cell.type !== "day") return null;
 
+              const hasTasks = cell.tasks.length > 0;
+
               return (
                 <div
                   key={cell.key}
-                  className={`min-h-[90px] p-2 rounded-lg border flex flex-col justify-start transition-colors ${
+                  onClick={() => {
+                    if (hasTasks) setSelectedTask(cell.tasks[0]);
+                  }}
+                  className={`min-h-[90px] p-2 rounded-lg border flex flex-col justify-start text-left transition-all ${
+                    hasTasks ? "cursor-pointer hover:bg-white/[0.05] hover:border-white/20 group" : ""
+                  } ${
                     cell.isToday
                       ? "bg-[#6d5bfa]/10 border-[#6d5bfa]/40 shadow-inner shadow-[#6d5bfa]/10"
-                      : "bg-white/[0.02] border-white/[0.05] hover:border-white/10"
+                      : "bg-white/[0.02] border-white/[0.05]"
                   }`}
                 >
                   {/* Day Number Header */}
-                  <div
-                    onClick={() => {
-                      if (cell.tasks.length > 0) setSelectedTask(cell.tasks[0]);
-                    }}
-                    className={`flex items-center justify-between mb-1.5 ${
-                      cell.tasks.length > 0 ? "cursor-pointer group/header" : ""
-                    }`}
-                  >
+                  <div className="flex items-center justify-between mb-1.5 w-full">
                     <span
                       className={`text-xs font-bold ${
                         cell.isToday
                           ? "bg-[#6d5bfa] text-white size-5 rounded-full flex items-center justify-center"
-                          : "text-white/70 group-hover/header:text-white"
+                          : "text-white/70 group-hover:text-white"
                       }`}
                     >
                       {cell.dayNum}
                     </span>
                     {cell.tasks.length > 0 && (
-                      <span className="text-[10px] text-[#8b7cf8] bg-[#6d5bfa]/10 px-1.5 py-0.2 rounded-full font-medium">
+                      <span className="text-[10px] text-[#8b7cf8] bg-[#6d5bfa]/15 px-1.5 py-0.2 rounded-full font-medium">
                         {cell.tasks.length} task{cell.tasks.length > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
 
-                  {/* Cell Task Pills (Max 2 visible) */}
-                  <div className="space-y-1 overflow-hidden">
+                  {/* Cell Task Indicators (Max 2 visible, passive divs) */}
+                  <div className="space-y-1 overflow-hidden w-full">
                     {cell.tasks.slice(0, 2).map((task) => {
                       const colors = intentColors[task.intent_label] || intentColors.other;
                       const isDone = task.status === "completed";
                       return (
-                        <button
+                        <div
                           key={task.id}
-                          onClick={() => setSelectedTask(task)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium border truncate transition-colors ${colors.bg} ${colors.text} ${colors.border} hover:brightness-125 ${
+                          className={`w-full px-1.5 py-0.5 rounded text-[11px] font-medium border truncate ${colors.bg} ${colors.text} ${colors.border} ${
                             isDone ? "opacity-50 line-through" : ""
                           }`}
                         >
                           {task.title}
-                        </button>
+                        </div>
                       );
                     })}
                     {cell.tasks.length > 2 && (
-                      <button
-                        onClick={() => setSelectedTask(cell.tasks[2])}
-                        className="w-full text-left px-1.5 py-0.5 rounded text-[10px] font-medium text-white/50 bg-white/5 hover:bg-white/10 hover:text-white/80 transition-colors truncate"
-                      >
+                      <div className="w-full px-1.5 py-0.5 rounded text-[10px] font-medium text-white/50 bg-white/5 truncate">
                         +{cell.tasks.length - 2} more...
-                      </button>
+                      </div>
                     )}
                   </div>
                 </div>
