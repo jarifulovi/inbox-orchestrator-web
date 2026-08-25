@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Inbox,
   CheckSquare,
+  PenSquare,
   Search,
   BarChart3,
   Settings,
@@ -16,6 +17,7 @@ const navItems = [
   { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
   { href: "/dashboard/threads", label: "Threads", icon: MessageSquare },
   { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/dashboard/drafts", label: "Drafts", icon: PenSquare },
   { href: "/dashboard/search", label: "Smart Search", icon: Search },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

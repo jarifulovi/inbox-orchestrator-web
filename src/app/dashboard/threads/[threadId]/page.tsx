@@ -504,6 +504,39 @@ export default function ThreadsPage() {
               </div>
             </div>
 
+            {/* Active Draft Notification Banner */}
+            {draftComposer.hasActiveDraft && !draftComposer.isOpen && (
+              <div className={`mx-4 mt-3 flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all ${
+                draftComposer.activeDraft?.status === "pending_approval"
+                  ? "bg-[#6d5bfa]/10 border-[#6d5bfa]/30"
+                  : "bg-amber-500/10 border-amber-500/20"
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  {draftComposer.activeDraft?.status === "pending_approval" ? (
+                    <>
+                      <Sparkles className="size-4 text-[#8b7cf8] shrink-0" />
+                      <span className="text-sm font-medium text-[#8b7cf8]">AI Draft Pending Approval</span>
+                    </>
+                  ) : (
+                    <>
+                      <PenSquare className="size-4 text-amber-400 shrink-0" />
+                      <span className="text-sm font-medium text-amber-400">Unsent Draft Saved</span>
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={draftComposer.openComposer}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                    draftComposer.activeDraft?.status === "pending_approval"
+                      ? "bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] border border-[#6d5bfa]/30"
+                      : "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30"
+                  }`}
+                >
+                  {draftComposer.activeDraft?.status === "pending_approval" ? "Open & Review" : "Continue Editing"}
+                </button>
+              </div>
+            )}
+
             {/* Emails scroll */}
             <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-3">
               {emails.map(email => (

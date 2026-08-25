@@ -1,6 +1,20 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Task } from "@/features/tasks/types";
 import { api } from "@/lib/axios";
+
+export interface ActiveDraft {
+  id: string;
+  thread_id: string;
+  recipient_to: string[];
+  subject: string | null;
+  body: string | null;
+  status: string;
+  gmail_draft_id: string | null;
+  generation_context: Record<string, unknown> | null;
+  resolved_task_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
 
 export interface UseDraftComposerOptions {
   accountId?: string;
@@ -34,31 +48,91 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
   const [selectedTone, setSelectedTone] = useState("Professional");
   const [draftBody, setDraftBody] = useState("");
 
+  // Active Draft State
+  const [activeDraft, setActiveDraft] = useState<ActiveDraft | null>(null);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const fetchedThreadRef = useRef<string | null>(null);
+
   // States
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Open Composer with auto pre-fills
+  // Fetch active draft for this thread on mount / thread change
+  useEffect(() => {
+    if (!accountId || !threadId) return;
+    if (fetchedThreadRef.current === threadId) return;
+
+    const fetchActiveDraft = async () => {
+      setDraftLoading(true);
+      try {
+        const res = await api.get<{ status: string; data: ActiveDraft[] }>(
+          `/emails/threads/${threadId}/drafts?account_id=${accountId}`
+        );
+        const drafts = res.data?.data || [];
+        // Find the first active (unsent) draft
+        const active = drafts.find(
+          (d) => d.status === "draft" || d.status === "pending_approval"
+        );
+        if (active) {
+          setActiveDraft(active);
+          setActiveDraftId(active.id);
+        } else {
+          setActiveDraft(null);
+          setActiveDraftId(null);
+        }
+        fetchedThreadRef.current = threadId;
+      } catch (err) {
+        console.error("Failed to fetch active draft:", err);
+        setActiveDraft(null);
+        setActiveDraftId(null);
+      } finally {
+        setDraftLoading(false);
+      }
+    };
+
+    fetchActiveDraft();
+  }, [accountId, threadId]);
+
+  const hasActiveDraft = !!activeDraft;
+
+  // Open Composer — hydrate from active draft if exists, otherwise use defaults
   const openComposer = useCallback(() => {
     setIsOpen(true);
     setIsMinimized(false);
 
-    setRecipientTo(lastSenderEmail);
-    const prefilledSubject = threadSubject
-      ? threadSubject.toLowerCase().startsWith("re:")
-        ? threadSubject
-        : `Re: ${threadSubject}`
-      : "New Email Message";
-    setSubject(prefilledSubject);
-
-    // Auto-select all pending tasks by default for resolution
-    if (pendingTasks.length > 0) {
-      setSelectedTaskIds(new Set(pendingTasks.map((t) => t.id)));
+    if (activeDraft) {
+      // Hydrate from existing draft
+      setRecipientTo(activeDraft.recipient_to?.join(", ") || lastSenderEmail);
+      setSubject(activeDraft.subject || threadSubject || "");
+      setDraftBody(activeDraft.body || "");
+      setActiveDraftId(activeDraft.id);
+      // Restore resolved task selections
+      if (activeDraft.resolved_task_ids?.length > 0) {
+        setSelectedTaskIds(new Set(activeDraft.resolved_task_ids));
+      } else if (pendingTasks.length > 0) {
+        setSelectedTaskIds(new Set(pendingTasks.map((t) => t.id)));
+      } else {
+        setSelectedTaskIds(new Set());
+      }
     } else {
-      setSelectedTaskIds(new Set());
+      // Fresh composer with defaults
+      setRecipientTo(lastSenderEmail);
+      const prefilledSubject = threadSubject
+        ? threadSubject.toLowerCase().startsWith("re:")
+          ? threadSubject
+          : `Re: ${threadSubject}`
+        : "New Email Message";
+      setSubject(prefilledSubject);
+
+      if (pendingTasks.length > 0) {
+        setSelectedTaskIds(new Set(pendingTasks.map((t) => t.id)));
+      } else {
+        setSelectedTaskIds(new Set());
+      }
     }
-  }, [lastSenderEmail, threadSubject, pendingTasks]);
+  }, [activeDraft, lastSenderEmail, threadSubject, pendingTasks]);
 
   const closeComposer = useCallback(() => {
     setIsOpen(false);
@@ -142,7 +216,7 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
     }, 800);
   }, [draftBody, threadSubject]);
 
-  // Save Draft (API Integration)
+  // Save Draft (API Integration) — uses PUT if activeDraftId exists, POST otherwise
   const saveDraft = useCallback(async () => {
     if (!accountId || !threadId) return null;
     setIsSaving(true);
@@ -153,23 +227,54 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const payload = {
-        recipient_to: recipients.length > 0 ? recipients : [lastSenderEmail || "unknown@example.com"],
-        subject: subject || threadSubject || "No Subject",
-        body: draftBody || "",
-        reply_to_email_id: replyToEmailId || null,
-        resolved_task_ids: Array.from(selectedTaskIds),
-        generation_context: aiInstructions ? { ai_instructions: aiInstructions, tone: selectedTone } : null,
-      };
+      if (activeDraftId) {
+        // UPDATE existing draft
+        const payload = {
+          recipient_to: recipients.length > 0 ? recipients : [lastSenderEmail || "unknown@example.com"],
+          subject: subject || threadSubject || "No Subject",
+          body: draftBody || "",
+          resolved_task_ids: Array.from(selectedTaskIds),
+        };
 
-      const res = await api.post<{ status: string; data: any }>(
-        `/emails/threads/${threadId}/drafts?account_id=${accountId}`,
-        payload
-      );
+        const res = await api.put<{ status: string; data: ActiveDraft }>(
+          `/emails/drafts/${activeDraftId}?account_id=${accountId}`,
+          payload
+        );
 
-      setStatusMessage("Draft saved & synced successfully.");
-      if (onSuccess) onSuccess();
-      return res.data;
+        // Update local active draft state
+        if (res.data?.data) {
+          setActiveDraft(res.data.data);
+        }
+
+        setStatusMessage("Draft updated & synced successfully.");
+        if (onSuccess) onSuccess();
+        return res.data;
+      } else {
+        // CREATE new draft
+        const payload = {
+          recipient_to: recipients.length > 0 ? recipients : [lastSenderEmail || "unknown@example.com"],
+          subject: subject || threadSubject || "No Subject",
+          body: draftBody || "",
+          reply_to_email_id: replyToEmailId || null,
+          resolved_task_ids: Array.from(selectedTaskIds),
+          generation_context: aiInstructions ? { ai_instructions: aiInstructions, tone: selectedTone } : null,
+        };
+
+        const res = await api.post<{ status: string; data: ActiveDraft }>(
+          `/emails/threads/${threadId}/drafts?account_id=${accountId}`,
+          payload
+        );
+
+        // Track the newly created draft as active
+        if (res.data?.data) {
+          setActiveDraft(res.data.data);
+          setActiveDraftId(res.data.data.id);
+        }
+
+        setStatusMessage("Draft saved & synced successfully.");
+        if (onSuccess) onSuccess();
+        return res.data;
+      }
     } catch (err) {
       console.error("Failed to save draft:", err);
       setStatusMessage("Failed to save draft.");
@@ -180,6 +285,7 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
   }, [
     accountId,
     threadId,
+    activeDraftId,
     recipientTo,
     subject,
     draftBody,
@@ -206,6 +312,10 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
       }
 
       setStatusMessage("Message sent successfully.");
+      // Clear active draft after sending
+      setActiveDraft(null);
+      setActiveDraftId(null);
+      fetchedThreadRef.current = null; // Allow re-fetch
       setIsOpen(false);
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -240,6 +350,11 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
     isGenerating,
     isSaving,
     statusMessage,
+    // Active Draft State
+    activeDraft,
+    activeDraftId,
+    hasActiveDraft,
+    draftLoading,
     // Actions
     setRecipientTo,
     setSubject,
