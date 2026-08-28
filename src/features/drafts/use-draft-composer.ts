@@ -142,34 +142,43 @@ export function useDraftComposer(options: UseDraftComposerOptions = {}) {
     }
   }, [pendingTasks, selectedTaskIds.size]);
 
-  // AI Content Generation (Mocked for UI workflow)
+  // Real Gemini LLM Manual AI Draft Generation
   const generateDraftContent = useCallback(async () => {
+    if (!accountId || !threadId) return;
     setIsGenerating(true);
-    setStatusMessage("AI is composing email text based on context...");
+    setStatusMessage("Gemini AI is composing email text based on context...");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const payload = {
+        ai_instructions: aiInstructions || null,
+        tone: selectedTone || "Professional",
+        resolved_task_ids: Array.from(selectedTaskIds),
+      };
 
-      const selectedTaskTitles = pendingTasks
-        .filter((t) => selectedTaskIds.has(t.id))
-        .map((t) => t.title);
+      const res = await api.post<{
+        status: string;
+        data: { body: string; subject: string; recipient_to: string[] };
+      }>(`/emails/threads/${threadId}/generate-draft?account_id=${accountId}`, payload);
 
-      const recipientName = recipientTo.split("@")[0] || "there";
-      const resolutionNote =
-        selectedTaskTitles.length > 0
-          ? `Regarding: ${selectedTaskTitles.join("; ")}.`
-          : "";
-
-      const sampleGeneratedDraft = `Hi ${recipientName},\n\nThank you for your update regarding ${threadSubject || "the ongoing discussion"}.\n\n${resolutionNote}\n${aiInstructions ? `Note: ${aiInstructions}\n` : ""}I have reviewed the details and confirm everything looks good on our end. Please let me know if any further clarification is required.\n\nBest regards,\nOvi`;
-
-      setDraftBody(sampleGeneratedDraft);
-      setStatusMessage("AI Draft generated successfully.");
+      const generated = res.data?.data;
+      if (generated?.body) {
+        setDraftBody(generated.body);
+        if (generated.subject && !subject) {
+          setSubject(generated.subject);
+        }
+        if (generated.recipient_to?.length > 0 && !recipientTo) {
+          setRecipientTo(generated.recipient_to.join(", "));
+        }
+        setStatusMessage("AI Draft generated successfully.");
+      } else {
+        setStatusMessage("No content generated.");
+      }
     } catch (err) {
       console.error("AI Draft Generation failed:", err);
       setStatusMessage("Failed to generate AI draft.");
     } finally {
       setIsGenerating(false);
     }
-  }, [recipientTo, threadSubject, pendingTasks, selectedTaskIds, aiInstructions]);
+  }, [accountId, threadId, aiInstructions, selectedTone, selectedTaskIds, subject, recipientTo]);
 
   // Quick Refine Actions
   const applyQuickRefine = useCallback((refinementType: string) => {
