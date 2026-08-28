@@ -14,12 +14,14 @@ import {
   ShieldQuestion,
   CheckSquare,
   Eye,
-  Reply,
   Search,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/threads/use-threads";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
+import { ThreadArchiveModal } from "@/features/threads/components/ThreadArchiveModal";
 import { connectGoogle } from "@/features/google/google.api";
 import { toast } from "sonner";
 
@@ -78,8 +80,18 @@ function formatTime(timestamp: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ThreadRow({ thread }: { thread: Thread }) {
+function ThreadRow({ thread, onStatusUpdate }: { thread: Thread; onStatusUpdate?: () => void }) {
+  const { selectedAccount } = useAuth();
   const [expanded, setExpanded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<WorkflowStatus>(thread.workflow_status);
+
+  const isArchived = currentStatus === "archived";
+
+  const handleOpenModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setModalOpen(true);
+  };
 
   return (
     <div
@@ -186,19 +198,31 @@ function ThreadRow({ thread }: { thread: Thread }) {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenModal}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    isArchived
+                      ? "bg-[#6d5bfa]/10 hover:bg-[#6d5bfa]/20 text-[#8b7cf8] border border-[#6d5bfa]/30"
+                      : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10"
+                  }`}
+                  title={isArchived ? "Restore to inbox" : "Archive thread"}
+                >
+                  {isArchived ? (
+                    <ArchiveRestore className="size-3.5 text-[#8b7cf8]" />
+                  ) : (
+                    <Archive className="size-3.5" />
+                  )}
+                  <span>{isArchived ? "Unarchive" : "Archive"}</span>
+                </button>
+
                 <Link
                   href={`/dashboard/threads/${thread.id}`}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-md text-xs font-medium transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-white border border-[#6d5bfa]/30 rounded-lg text-xs font-semibold transition-all shadow-sm"
                 >
-                  <Eye className="size-3.5" />
-                  View
-                </Link>
-                <Link
-                  href={`/dashboard/threads/${thread.id}`}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-[#6d5bfa]/20 hover:bg-[#6d5bfa]/30 text-[#8b7cf8] hover:text-[#a899fa] border border-[#6d5bfa]/30 rounded-md text-xs font-medium transition-colors"
-                >
-                  <Reply className="size-3.5" />
-                  Reply
+                  <Eye className="size-3.5 text-[#8b7cf8]" />
+                  <span>View Thread</span>
                 </Link>
               </div>
             </div>
@@ -207,6 +231,22 @@ function ThreadRow({ thread }: { thread: Thread }) {
             </p>
           </div>
         </div>
+
+        {/* Reusable Archive / Unarchive Confirmation Modal */}
+        {selectedAccount?.id && (
+          <ThreadArchiveModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            threadId={thread.id}
+            threadSubject={thread.subject}
+            isArchived={isArchived}
+            accountId={selectedAccount.id}
+            onSuccess={() => {
+              setCurrentStatus(isArchived ? "needs_action" : "archived");
+              if (onStatusUpdate) onStatusUpdate();
+            }}
+          />
+        )}
       </div>
     </div>
   );

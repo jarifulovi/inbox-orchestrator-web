@@ -40,6 +40,7 @@ import { useThreadDetails, ThreadEmail, EmailFact } from "@/features/threads/use
 import { useDraftComposer } from "@/features/drafts/use-draft-composer";
 import { DraftComposerDrawer } from "@/features/drafts/components/DraftComposerDrawer";
 import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
+import { ThreadArchiveModal } from "@/features/threads/components/ThreadArchiveModal";
 import { Task } from "@/features/tasks/types";
 import { EmailContentView } from "@/features/threads/components/email-content-view";
 import { api } from "@/lib/axios";
@@ -759,65 +760,21 @@ export default function ThreadsPage() {
         )}
       </div>
 
-      {/* ─── Archive Confirmation Modal ────────────────────────────────────── */}
-      <Dialog open={archiveModalOpen} onOpenChange={setArchiveModalOpen}>
-        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
-          <DialogHeader className="text-left">
-            <div className="size-12 rounded-full bg-zinc-500/10 border border-zinc-500/20 flex items-center justify-center mb-4">
-              <Archive className="size-6 text-zinc-400" />
-            </div>
-            <DialogTitle className="text-lg font-semibold text-white mb-2">Archive Thread?</DialogTitle>
-            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
-              Are you sure you want to archive <span className="text-white/90 font-medium">"{activeThread?.subject}"</span>? Archived threads are hidden from active inbox views and ignored for background re-evaluations.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
-            <button
-              onClick={() => setArchiveModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleArchiveThread}
-              disabled={isArchiving}
-              className="px-4 py-2 text-sm font-medium bg-zinc-700 text-white hover:bg-zinc-600 rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center min-w-28"
-            >
-              {isArchiving ? "Archiving..." : "Yes, Archive"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── Unarchive Confirmation Modal ──────────────────────────────────── */}
-      <Dialog open={unarchiveModalOpen} onOpenChange={setUnarchiveModalOpen}>
-        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
-          <DialogHeader className="text-left">
-            <div className="size-12 rounded-full bg-[#6d5bfa]/10 border border-[#6d5bfa]/20 flex items-center justify-center mb-4">
-              <ArchiveRestore className="size-6 text-[#8b7cf8]" />
-            </div>
-            <DialogTitle className="text-lg font-semibold text-white mb-2">Unarchive Thread?</DialogTitle>
-            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
-              Are you sure you want to unarchive <span className="text-white/90 font-medium">"{activeThread?.subject}"</span>? The thread will be restored to active inbox queues and dynamically categorized.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
-            <button
-              onClick={() => setUnarchiveModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUnarchiveThread}
-              disabled={isUnarchiving}
-              className="px-4 py-2 text-sm font-medium bg-[#6d5bfa] text-white hover:bg-[#5b49f8] rounded-lg transition-colors shadow-lg shadow-[#6d5bfa]/20 disabled:opacity-50 flex items-center justify-center min-w-28"
-            >
-              {isUnarchiving ? "Unarchiving..." : "Yes, Unarchive"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ─── Reusable Thread Archive / Unarchive Confirmation Modal ─────────── */}
+      {selectedAccount?.id && activeThread && (
+        <ThreadArchiveModal
+          isOpen={archiveModalOpen || unarchiveModalOpen}
+          onClose={() => {
+            setArchiveModalOpen(false);
+            setUnarchiveModalOpen(false);
+          }}
+          threadId={activeThread.id}
+          threadSubject={activeThread.subject || ""}
+          isArchived={isThreadArchived}
+          accountId={selectedAccount.id}
+          onSuccess={refreshAll}
+        />
+      )}
     </>
   );
 }
