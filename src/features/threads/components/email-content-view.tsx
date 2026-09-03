@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface EmailContentViewProps {
   content: string;
@@ -22,10 +23,12 @@ export function EmailContentView({ content }: EmailContentViewProps) {
     );
   }
 
+  const cleanHtml = sanitizeHtml(content);
+
   return (
     <div
-      className="email-content-view border-t border-white/[0.05] pt-3"
-      dangerouslySetInnerHTML={{ __html: content }}
+      className="email-content-view border-t border-white/[0.05] pt-3 text-sm text-white/80 leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
     />
   );
 }
