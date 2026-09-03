@@ -90,10 +90,23 @@ export function useThreadDetails(
       if (res.data?.data?.thread) {
         setData(res.data.data.thread);
         return res.data.data;
-      } else {
-        await fetchDetails();
-        return null;
+      } else if (res.data?.data) {
+        const { summary, priority, summary_generated_at } = res.data.data;
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            thread: {
+              ...prev.thread,
+              summary,
+              priority: priority as any,
+              summary_generated_at,
+            },
+          };
+        });
+        return res.data.data;
       }
+      return null;
     } catch (err: unknown) {
       console.error(`Failed to generate summary for thread ${threadId}:`, err);
       throw err;

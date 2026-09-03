@@ -49,8 +49,37 @@ const workflowColor: Record<WorkflowStatus, string> = {
   follow_up:
     "bg-purple-400/10 text-purple-400 border border-purple-400/20",
   archived:
-    "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20",
+    "bg-[#161921] text-white/30 border border-white/5",
 };
+
+function FormattedSummary({ summary }: { summary?: string | null }) {
+  if (!summary) return null;
+
+  const lines = summary
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const isBulletList = lines.length > 1 || lines.some((l) => /^[•\-\*\d+\.]\s*/.test(l));
+
+  if (isBulletList) {
+    return (
+      <ul className="space-y-1.5 my-1">
+        {lines.map((line, idx) => {
+          const cleanText = line.replace(/^[•\-\*\d+\.]\s*/, "").trim();
+          return (
+            <li key={idx} className="flex items-start gap-2 text-xs text-white/85 leading-relaxed">
+              <span className="size-1.5 rounded-full bg-[#8b7cf8] shrink-0 mt-1.5 shadow-[0_0_8px_rgba(139,124,248,0.5)]" />
+              <span>{cleanText}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  return <p className="text-sm text-white/60 leading-relaxed">{summary}</p>;
+}
 
 const securityIcon: Record<SecurityTrustLevel, React.ReactNode> = {
   unverified: <ShieldQuestion className="size-3 text-zinc-400" />,
@@ -226,9 +255,9 @@ function ThreadRow({ thread, onStatusUpdate }: { thread: Thread; onStatusUpdate?
                 </Link>
               </div>
             </div>
-            <p className="text-sm text-white/60 leading-relaxed">
-              {thread.summary}
-            </p>
+            <div className="mt-2">
+              <FormattedSummary summary={thread.summary} />
+            </div>
           </div>
         </div>
 

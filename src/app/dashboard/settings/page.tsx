@@ -101,7 +101,7 @@ export default function SettingsPage() {
     enable_auto_task: true,
     enable_auto_draft: false,
     summary_format: "paragraph",
-    ai_model: "gemini-3.5-flash",
+    ai_model: "gemini-3.6-flash",
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -417,8 +417,9 @@ export default function SettingsPage() {
           <SelectOption
             label="Language model"
             options={[
-              { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
-              { value: "gemini-3.5-pro", label: "Gemini 3.5 Pro" },
+              { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+              { value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+              { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
             ]}
             value={profileSettings.ai_model}
             onChange={(val) => handleUpdateProfileSetting("ai_model", val)}

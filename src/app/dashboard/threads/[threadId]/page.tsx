@@ -92,6 +92,35 @@ const factTypeColor: Record<EmailFact["fact_type"], string> = {
   fact: "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20",
 };
 
+function FormattedSummary({ summary }: { summary?: string | null }) {
+  if (!summary) return null;
+
+  const lines = summary
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const isBulletList = lines.length > 1 || lines.some((l) => /^[•\-\*\d+\.]\s*/.test(l));
+
+  if (isBulletList) {
+    return (
+      <ul className="space-y-1.5 my-1">
+        {lines.map((line, idx) => {
+          const cleanText = line.replace(/^[•\-\*\d+\.]\s*/, "").trim();
+          return (
+            <li key={idx} className="flex items-start gap-2 text-xs text-white/85 leading-relaxed">
+              <span className="size-1.5 rounded-full bg-[#8b7cf8] shrink-0 mt-1.5 shadow-[0_0_8px_rgba(139,124,248,0.5)]" />
+              <span>{cleanText}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  return <p className="text-xs text-white/70 leading-relaxed">{summary}</p>;
+}
+
 // ─── MIDDLE PANEL: Email Card ────────────────────────────────────────────────
 
 function EmailCard({
@@ -660,7 +689,6 @@ export default function ThreadsPage() {
                     if (generatingSummary) return;
                     try {
                       await generateSummary();
-                      refetchThreads();
                     } catch (err) {
                       console.error("Summary generation error:", err);
                     }
@@ -691,7 +719,7 @@ export default function ThreadsPage() {
                       <p className="text-xs font-medium">Synthesizing email context & generating summary...</p>
                     </div>
                   ) : activeThread.summary ? (
-                    <p className="text-xs text-white/70 leading-relaxed">{activeThread.summary}</p>
+                    <FormattedSummary summary={activeThread.summary} />
                   ) : (
                     <div className="flex flex-col items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
                       <div className="flex items-start gap-2 text-white/40">
