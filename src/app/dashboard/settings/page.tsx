@@ -11,13 +11,15 @@ import {
   RefreshCw,
   Plus,
   Shield,
+  Loader2,
 } from "lucide-react";
 import { defaultSettings } from "@/features/settings/data";
 import { UserSettings } from "@/features/settings/types";
 import { connectGoogle } from "@/features/google/google.api";
+import { api } from "@/lib/axios";
 import { toast } from "sonner";
 
-import { useAuth } from "@/features/auth/auth-context";
+import { useAuth, ConnectedAccount } from "@/features/auth/auth-context";
 
 function Toggle({
   enabled,
@@ -76,8 +78,9 @@ function SelectOption({
 }
 
 export default function SettingsPage() {
-  const { me } = useAuth();
+  const { me, refreshUser } = useAuth();
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [togglingAccount, setTogglingAccount] = useState<Record<string, boolean>>({});
 
   const connectedAccounts = me?.gmail?.accounts || [];
 
@@ -92,6 +95,27 @@ export default function SettingsPage() {
     } catch (err) {
       console.error("Failed to connect Google account:", err);
       toast.error("Failed to initiate Google account connection.");
+    }
+  };
+
+  const handleToggleAccountSync = async (account: ConnectedAccount) => {
+    setTogglingAccount((prev) => ({ ...prev, [account.id]: true }));
+    const targetState = !account.is_active;
+    try {
+      await api.patch(`/auth/accounts/${account.id}/sync`, {
+        is_active: targetState,
+      });
+      toast.success(
+        targetState
+          ? `Background sync resumed for ${account.email}`
+          : `Background sync paused for ${account.email}`
+      );
+      if (refreshUser) await refreshUser();
+    } catch (err) {
+      console.error("Failed to update account sync status:", err);
+      toast.error("Failed to update account sync status.");
+    } finally {
+      setTogglingAccount((prev) => ({ ...prev, [account.id]: false }));
     }
   };
 
@@ -181,18 +205,20 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-4 shrink-0">
                   {/* Status indicator */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5" title={account.is_active ? "Background sync active" : "Background sync paused"}>
                     <div
                       className={`size-2 rounded-full ${
-                        account.is_active ? "bg-emerald-400" : "bg-red-400"
+                        account.is_active ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
                       }`}
                     />
-                    <span className={`text-[11px] font-medium ${
-                      account.is_active ? "text-emerald-400/80" : "text-red-400"
-                    }`}>
-                      {account.is_active ? "Active" : "Disconnected"}
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        account.is_active ? "text-emerald-400/90" : "text-amber-400/90"
+                      }`}
+                    >
+                      {account.is_active ? "Active" : "Sync Paused"}
                     </span>
                   </div>
 
@@ -207,23 +233,29 @@ export default function SettingsPage() {
                     </span>
                   )}
 
-                  {/* Action button: Reconnect if inactive, else Connect/Sync */}
-                  {!account.is_active ? (
-                    <button
-                      onClick={() => handleConnectAccount(account.email)}
-                      className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      Reconnect
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleConnectAccount(account.email)}
-                      className="size-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/30 hover:text-white/60"
-                      title="Re-authenticate Account"
-                    >
-                      <RefreshCw className="size-3.5" />
-                    </button>
-                  )}
+                  {/* Sync Toggle */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white/40 hidden md:inline-block">
+                      {account.is_active ? "Sync On" : "Sync Off"}
+                    </span>
+                    {togglingAccount[account.id] ? (
+                      <Loader2 className="size-4 animate-spin text-[#8b7cf8]" />
+                    ) : (
+                      <Toggle
+                        enabled={account.is_active}
+                        onToggle={() => handleToggleAccountSync(account)}
+                      />
+                    )}
+                  </div>
+
+                  {/* Re-authenticate button */}
+                  <button
+                    onClick={() => handleConnectAccount(account.email)}
+                    className="size-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/40 hover:text-white cursor-pointer"
+                    title="Re-authenticate Google Account"
+                  >
+                    <RefreshCw className="size-3.5" />
+                  </button>
                 </div>
               </div>
             ))
