@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings as SettingsIcon,
   Mail,
@@ -91,6 +91,44 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [togglingAccount, setTogglingAccount] = useState<Record<string, boolean>>({});
   const [reauthAccount, setReauthAccount] = useState<ConnectedAccount | null>(null);
+
+  const [profileSettings, setProfileSettings] = useState<{
+    enable_auto_task: boolean;
+    enable_auto_draft: boolean;
+    summary_format: string;
+    ai_model: string;
+  }>({
+    enable_auto_task: true,
+    enable_auto_draft: false,
+    summary_format: "paragraph",
+    ai_model: "gemini-3.5-flash",
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    api.get("/settings")
+      .then((res) => {
+        if (res.data?.settings) {
+          setProfileSettings(res.data.settings);
+        }
+      })
+      .catch((err) => console.error("Failed to load profile settings:", err));
+  }, []);
+
+  const handleUpdateProfileSetting = async (key: string, value: any) => {
+    const updated = { ...profileSettings, [key]: value };
+    setProfileSettings(updated);
+    setSavingSettings(true);
+    try {
+      await api.put("/settings", updated);
+      toast.success("AI preferences updated.");
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      toast.error("Failed to save settings.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const connectedAccounts = me?.gmail?.accounts || [];
 
@@ -325,73 +363,65 @@ export default function SettingsPage() {
 
       {/* AI Preferences */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Brain className="size-4 text-[#46d3e5]" />
-          <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider">
-            AI Preferences
-          </h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="size-4 text-[#46d3e5]" />
+            <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider">
+              AI Preferences (Profile Level)
+            </h2>
+          </div>
+          {savingSettings && (
+            <div className="flex items-center gap-1.5 text-xs text-[#46d3e5]">
+              <Loader2 className="size-3.5 animate-spin" />
+              <span>Saving...</span>
+            </div>
+          )}
         </div>
 
         <div className="glass-card rounded-xl px-5 divide-y divide-white/[0.04]">
           {/* Toggle options */}
-          {[
-            {
-              key: "auto_categorize",
-              label: "Auto-categorize incoming emails",
-            },
-            {
-              key: "auto_summarize",
-              label: "Generate AI summaries for threads",
-            },
-            {
-              key: "smart_priority",
-              label: "Smart priority detection",
-            },
-          ].map(({ key, label }) => (
-            <div
-              key={key}
-              className="flex items-center justify-between py-3.5"
-            >
-              <span className="text-sm text-white/60">{label}</span>
-              <Toggle
-                enabled={
-                  settings.ai_preferences[
-                    key as keyof typeof settings.ai_preferences
-                  ] as boolean
-                }
-                onToggle={() =>
-                  updateAI(
-                    key,
-                    !settings.ai_preferences[
-                      key as keyof typeof settings.ai_preferences
-                    ]
-                  )
-                }
-              />
+          <div className="flex items-center justify-between py-3.5">
+            <div>
+              <div className="text-sm text-white/80 font-medium">Auto Task Extraction</div>
+              <div className="text-xs text-white/40">Automatically extract actionable tasks during background orchestration</div>
             </div>
-          ))}
+            <Toggle
+              enabled={profileSettings.enable_auto_task}
+              onToggle={() => handleUpdateProfileSetting("enable_auto_task", !profileSettings.enable_auto_task)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between py-3.5">
+            <div>
+              <div className="text-sm text-white/80 font-medium">Auto Draft Generation</div>
+              <div className="text-xs text-white/40">Automatically generate AI reply drafts for actionable threads</div>
+            </div>
+            <Toggle
+              enabled={profileSettings.enable_auto_draft}
+              onToggle={() => handleUpdateProfileSetting("enable_auto_draft", !profileSettings.enable_auto_draft)}
+            />
+          </div>
 
           {/* Select options */}
           <SelectOption
-            label="Language model"
+            label="Summary style"
             options={[
-              { value: "fast", label: "Fast" },
-              { value: "balanced", label: "Balanced" },
-              { value: "accurate", label: "Accurate" },
+              { value: "paragraph", label: "Executive Paragraph" },
+              { value: "bullets", label: "Bullet Points" },
+              { value: "concise", label: "Ultra Concise" },
             ]}
-            value={settings.ai_preferences.language_model}
-            onChange={(val) => updateAI("language_model", val)}
+            value={profileSettings.summary_format}
+            onChange={(val) => handleUpdateProfileSetting("summary_format", val)}
           />
 
           <SelectOption
-            label="Summary length"
+            label="Language model"
             options={[
-              { value: "brief", label: "Brief" },
-              { value: "standard", label: "Standard" },
-              { value: "detailed", label: "Detailed" },
+              { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+              { value: "gemini-3.5-pro", label: "Gemini 3.5 Pro" },
             ]}
-            value={settings.ai_preferences.summary_length}
-            onChange={(val) => updateAI("summary_length", val)}
+            value={profileSettings.ai_model}
+            onChange={(val) => handleUpdateProfileSetting("ai_model", val)}
           />
         </div>
       </section>
