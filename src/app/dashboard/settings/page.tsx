@@ -7,12 +7,21 @@ import {
   Brain,
   Bell,
   Palette,
-  Check,
-  RefreshCw,
-  Plus,
   Shield,
   Loader2,
+  KeyRound,
+  ExternalLink,
+  Plus,
+  Check,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { defaultSettings } from "@/features/settings/data";
 import { UserSettings } from "@/features/settings/types";
 import { connectGoogle } from "@/features/google/google.api";
@@ -81,6 +90,7 @@ export default function SettingsPage() {
   const { me, refreshUser } = useAuth();
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [togglingAccount, setTogglingAccount] = useState<Record<string, boolean>>({});
+  const [reauthAccount, setReauthAccount] = useState<ConnectedAccount | null>(null);
 
   const connectedAccounts = me?.gmail?.accounts || [];
 
@@ -248,13 +258,14 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  {/* Re-authenticate button */}
+                  {/* Re-authenticate Button */}
                   <button
-                    onClick={() => handleConnectAccount(account.email)}
-                    className="size-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/40 hover:text-white cursor-pointer"
-                    title="Re-authenticate Google Account"
+                    onClick={() => setReauthAccount(account)}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                    title="Re-authenticate Google Account credentials"
                   >
-                    <RefreshCw className="size-3.5" />
+                    <KeyRound className="size-3.5 text-[#8b7cf8]" />
+                    <span>Re-authenticate</span>
                   </button>
                 </div>
               </div>
@@ -271,6 +282,46 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      {/* ─── Re-authenticate Confirmation Modal ─────────────────────────── */}
+      <Dialog open={!!reauthAccount} onOpenChange={(open) => !open && setReauthAccount(null)}>
+        <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
+          <DialogHeader className="text-left">
+            <div className="size-12 rounded-full bg-[#6d5bfa]/10 border border-[#6d5bfa]/20 flex items-center justify-center mb-4 text-[#8b7cf8]">
+              <KeyRound className="size-6" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-white mb-2">
+              Re-authenticate Google Account?
+            </DialogTitle>
+            <DialogDescription className="text-sm text-white/60 mb-6 leading-relaxed">
+              You will be redirected to Google OAuth to re-authorize permissions for{" "}
+              <span className="text-white/90 font-medium">"{reauthAccount?.email}"</span>. Your existing email threads, AI summaries, and tasks will remain preserved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex items-center justify-end gap-3 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setReauthAccount(null)}
+              className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const targetEmail = reauthAccount?.email;
+                setReauthAccount(null);
+                handleConnectAccount(targetEmail);
+              }}
+              className="px-4 py-2 text-sm font-medium bg-[#6d5bfa] hover:bg-[#5b49f8] text-white rounded-lg transition-colors shadow-lg shadow-[#6d5bfa]/20 flex items-center gap-2 cursor-pointer"
+            >
+              <span>Proceed to Google</span>
+              <ExternalLink className="size-4" />
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* AI Preferences */}
       <section className="space-y-4">
