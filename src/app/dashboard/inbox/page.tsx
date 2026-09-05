@@ -109,11 +109,21 @@ function formatTime(timestamp: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ThreadRow({ thread, onStatusUpdate }: { thread: Thread; onStatusUpdate?: () => void }) {
+function ThreadRow({
+  thread,
+  onStatusUpdate,
+}: {
+  thread: Thread;
+  onStatusUpdate?: (newStatus: WorkflowStatus) => void;
+}) {
   const { selectedAccount } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<WorkflowStatus>(thread.workflow_status);
+
+  useEffect(() => {
+    setCurrentStatus(thread.workflow_status);
+  }, [thread.workflow_status]);
 
   const isArchived = currentStatus === "archived";
 
@@ -270,9 +280,10 @@ function ThreadRow({ thread, onStatusUpdate }: { thread: Thread; onStatusUpdate?
             threadSubject={thread.subject}
             isArchived={isArchived}
             accountId={selectedAccount.id}
-            onSuccess={() => {
-              setCurrentStatus(isArchived ? "needs_action" : "archived");
-              if (onStatusUpdate) onStatusUpdate();
+            onSuccess={(newStatus) => {
+              const finalStatus = newStatus || (isArchived ? "needs_action" : "archived");
+              setCurrentStatus(finalStatus);
+              if (onStatusUpdate) onStatusUpdate(finalStatus);
             }}
           />
         )}
@@ -324,7 +335,13 @@ export default function InboxPage() {
     loadMore,
     syncing,
     syncInbox,
+    updateThreadInList,
   } = useThreads(selectedAccount?.id, threadFilters, authLoading);
+
+  const visibleThreads = useMemo(() => {
+    if (filterStatus === "all") return threads;
+    return threads.filter((t) => t.workflow_status === filterStatus);
+  }, [threads, filterStatus]);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -353,7 +370,7 @@ export default function InboxPage() {
     };
   }, [hasMore, loadingThreads, loadingMore, loadMore]);
 
-  const unreadCount = useMemo(() => threads.filter((t) => t.unread).length, [threads]);
+  const unreadCount = useMemo(() => visibleThreads.filter((t) => t.unread).length, [visibleThreads]);
 
   if (!selectedAccount) {
     return (
@@ -419,7 +436,7 @@ export default function InboxPage() {
             Inbox
           </h1>
           <p className="text-sm text-white/40 mt-1">
-            {unreadCount} unread · {threads.length} total threads
+            {unreadCount} unread · {visibleThreads.length} total threads
           </p>
         </div>
 
@@ -478,9 +495,15 @@ export default function InboxPage() {
                 <span className="text-white/40 text-sm">Searching threads...</span>
               </div>
             </div>
-          ) : threads.length > 0 ? (
-            threads.map((thread) => (
-              <ThreadRow key={thread.id} thread={thread} />
+          ) : visibleThreads.length > 0 ? (
+            visibleThreads.map((thread) => (
+              <ThreadRow
+                key={thread.id}
+                thread={thread}
+                onStatusUpdate={(newStatus) => {
+                  updateThreadInList(thread.id, { workflow_status: newStatus });
+                }}
+              />
             ))
           ) : (
             <div className="glass-card rounded-xl px-6 py-16 text-center">

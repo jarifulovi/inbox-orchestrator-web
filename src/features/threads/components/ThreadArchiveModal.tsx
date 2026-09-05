@@ -13,6 +13,8 @@ import {
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 
+import { WorkflowStatus } from "@/features/threads/types";
+
 export interface ThreadArchiveModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +22,7 @@ export interface ThreadArchiveModalProps {
   threadSubject: string;
   isArchived: boolean;
   accountId: string;
-  onSuccess?: () => void;
+  onSuccess?: (newStatus?: WorkflowStatus) => void;
 }
 
 export function ThreadArchiveModal({
@@ -39,15 +41,17 @@ export function ThreadArchiveModal({
     setLoading(true);
     const targetStatus = isArchived ? "unarchive" : "archived";
     try {
-      await api.patch(
+      const res = await api.patch<{ status: string; thread?: { workflow_status?: WorkflowStatus } }>(
         `/emails/threads/${threadId}/status?account_id=${accountId}`,
         { workflow_status: targetStatus }
       );
       toast.success(
         isArchived ? "Thread restored to active inbox." : "Thread archived."
       );
+      const updatedStatus: WorkflowStatus =
+        res.data?.thread?.workflow_status || (isArchived ? "needs_action" : "archived");
       onClose();
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(updatedStatus);
     } catch (err) {
       console.error("Failed to update thread status:", err);
       toast.error("Failed to update thread status.");
@@ -61,11 +65,10 @@ export function ThreadArchiveModal({
       <DialogContent className="sm:max-w-sm bg-[#161921] border-white/10 text-white shadow-2xl p-6">
         <DialogHeader className="text-left">
           <div
-            className={`size-12 rounded-full border flex items-center justify-center mb-4 ${
-              isArchived
+            className={`size-12 rounded-full border flex items-center justify-center mb-4 ${isArchived
                 ? "bg-[#6d5bfa]/10 border-[#6d5bfa]/20 text-[#8b7cf8]"
                 : "bg-zinc-500/10 border-zinc-500/20 text-zinc-400"
-            }`}
+              }`}
           >
             {isArchived ? (
               <ArchiveRestore className="size-6" />
@@ -111,11 +114,10 @@ export function ThreadArchiveModal({
             type="button"
             onClick={handleToggleStatus}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center min-w-28 cursor-pointer ${
-              isArchived
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center min-w-28 cursor-pointer ${isArchived
                 ? "bg-[#6d5bfa] hover:bg-[#5b49f8] shadow-[#6d5bfa]/20"
                 : "bg-zinc-700 hover:bg-zinc-600"
-            }`}
+              }`}
           >
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
