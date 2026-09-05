@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Search, Mail, CheckSquare, Inbox } from "lucide-react";
+import { Search, Mail, CheckSquare, Inbox, Filter, ChevronDown } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/threads/use-threads";
-import { Thread, WorkflowStatus } from "@/features/threads/types";
+import { Thread, WorkflowStatus, CategoryFilter } from "@/features/threads/types";
 import { getInitial, getAvatarColor, formatTime } from "@/features/threads/utils";
 import { ThreadsProvider } from "@/features/threads/threads-context";
 
@@ -89,6 +89,86 @@ function ThreadListItem({
   );
 }
 
+function CategoryColorDropdown({
+  value,
+  onChange,
+}: {
+  value: CategoryFilter;
+  onChange: (val: CategoryFilter) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const colorConfig: Record<CategoryFilter, { bg: string; shadow: string; label: string }> = {
+    focused: {
+      bg: "bg-emerald-400",
+      shadow: "shadow-[0_0_8px_rgba(52,211,153,0.6)]",
+      label: "Focused",
+    },
+    all: {
+      bg: "bg-blue-400",
+      shadow: "shadow-[0_0_8px_rgba(96,165,250,0.6)]",
+      label: "All Threads",
+    },
+    noise: {
+      bg: "bg-amber-400",
+      shadow: "shadow-[0_0_8px_rgba(251,191,36,0.6)]",
+      label: "Noise",
+    },
+  };
+
+  const current = colorConfig[value];
+
+  return (
+    <div className="relative shrink-0" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
+        title={`View: ${current.label}`}
+      >
+        <span className={`size-2.5 rounded-full ${current.bg} ${current.shadow}`} />
+        <ChevronDown className="size-3 text-white/40" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-1.5 w-36 py-1 bg-[#161921] border border-white/10 rounded-xl shadow-2xl z-50 text-xs space-y-0.5">
+          {(["focused", "all", "noise"] as CategoryFilter[]).map((cat) => {
+            const conf = colorConfig[cat];
+            const isSelected = value === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => {
+                  onChange(cat);
+                  setOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                  isSelected ? "bg-white/10 text-white font-semibold" : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <span className={`size-2 rounded-full ${conf.bg} ${conf.shadow}`} />
+                <span>{conf.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ThreadsLayout({
   children,
 }: {
@@ -100,6 +180,7 @@ export default function ThreadsLayout({
 
   const activeThreadId = params?.threadId as string | undefined;
 
+  const [filterCategory, setFilterCategory] = useState<CategoryFilter>("focused");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -113,9 +194,10 @@ export default function ThreadsLayout({
 
   const threadFilters = useMemo(
     () => ({
+      category: filterCategory,
       q: debouncedQuery,
     }),
-    [debouncedQuery]
+    [filterCategory, debouncedQuery]
   );
 
   // Persistent threads hook for the left panel
@@ -128,6 +210,19 @@ export default function ThreadsLayout({
     refetch,
     updateThreadInList,
   } = useThreads(selectedAccount?.id, threadFilters, authLoading);
+
+  const visibleThreads = useMemo(() => {
+    let result = threads;
+    // Search override: if search query 'q' is active, do not filter out noise locally
+    if (!debouncedQuery.trim()) {
+      if (filterCategory === "focused") {
+        result = result.filter((t) => t.category !== "others" && Boolean(t.category));
+      } else if (filterCategory === "noise") {
+        result = result.filter((t) => t.category === "others" || !t.category);
+      }
+    }
+    return result;
+  }, [threads, filterCategory, debouncedQuery]);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -178,18 +273,25 @@ export default function ThreadsLayout({
         {/* PERSISTENT LEFT PANEL — Thread list (Never unmounts on navigation)  */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         <div className="w-[280px] shrink-0 border-r border-white/[0.06] flex flex-col h-full">
-          {/* Search bar */}
-          <div className="px-3 py-3 border-b border-white/[0.06]">
-            <div className="relative">
+          {/* Search bar & Category dropdown */}
+          <div className="px-3 py-3 border-b border-white/[0.06] flex items-center gap-1.5">
+            <div className="relative flex-1">
               <Search className="size-3.5 text-white/25 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search threads..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-2 text-xs text-white/70 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/40"
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-2 py-1.5 text-xs text-white/70 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/40"
               />
             </div>
+            <CategoryColorDropdown
+              value={filterCategory}
+              onChange={(cat) => {
+                setSearchQuery("");
+                setFilterCategory(cat);
+              }}
+            />
           </div>
 
           {/* Thread list scroll */}
@@ -199,14 +301,14 @@ export default function ThreadsLayout({
                 <div className="size-5 border-2 border-[#6d5bfa] border-t-transparent rounded-full animate-spin" />
                 <span className="text-xs text-white/30">Loading threads...</span>
               </div>
-            ) : threads.length === 0 ? (
+            ) : visibleThreads.length === 0 ? (
               <div className="text-center py-10">
                 <Mail className="size-8 text-white/10 mx-auto mb-2" />
                 <p className="text-xs text-white/25">No threads found</p>
               </div>
             ) : (
               <>
-                {threads.map((t) => (
+                {visibleThreads.map((t) => (
                   <ThreadListItem
                     key={t.id}
                     thread={t}

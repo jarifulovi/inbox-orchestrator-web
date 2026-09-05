@@ -9,6 +9,10 @@ export type WorkflowStatus =
 
 export type SecurityTrustLevel = "unverified" | "suspicious" | "neutral" | "trusted";
 
+export type EmailCategory = "work_professional" | "financial" | "system_automated" | "others";
+
+export type CategoryFilter = "focused" | "all" | "noise";
+
 export type Thread = {
   id: string;
   subject: string;
@@ -19,6 +23,7 @@ export type Thread = {
   priority: Priority;
   workflow_status: WorkflowStatus;
   security_trust_level: SecurityTrustLevel;
+  category?: EmailCategory;
   tasks_count: number;
   timestamp: string;
   unread: boolean;

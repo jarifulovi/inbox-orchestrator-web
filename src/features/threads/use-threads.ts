@@ -4,7 +4,7 @@ import { Thread } from "./types";
 
 export function useThreads(
   accountId: string | undefined,
-  filters?: { status?: string; priority?: string; q?: string },
+  filters?: { status?: string; priority?: string; q?: string; category?: string },
   authLoading: boolean = false
 ) {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -25,6 +25,9 @@ export function useThreads(
         }
         if (filters?.priority && filters.priority !== "all") {
           url += `&priority=${encodeURIComponent(filters.priority)}`;
+        }
+        if (filters?.category && filters.category !== "all") {
+          url += `&category=${encodeURIComponent(filters.category)}`;
         }
         if (filters?.q && filters.q.trim()) {
           url += `&q=${encodeURIComponent(filters.q.trim())}`;
@@ -58,7 +61,7 @@ export function useThreads(
         console.error("Failed to fetch threads:", err);
       }
     },
-    [accountId, authLoading, filters?.status, filters?.priority, filters?.q]
+    [accountId, authLoading, filters?.status, filters?.priority, filters?.category, filters?.q]
   );
 
   // Initial load or account/filter switch with AbortController cancellation

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useThreads } from "@/features/threads/use-threads";
-import { Thread, Priority, WorkflowStatus, SecurityTrustLevel } from "@/features/threads/types";
+import { Thread, Priority, WorkflowStatus, SecurityTrustLevel, CategoryFilter } from "@/features/threads/types";
 import { ThreadArchiveModal } from "@/features/threads/components/ThreadArchiveModal";
 import { connectGoogle } from "@/features/google/google.api";
 import { toast } from "sonner";
@@ -292,11 +292,92 @@ function ThreadRow({
   );
 }
 
+function CategoryColorDropdown({
+  value,
+  onChange,
+}: {
+  value: CategoryFilter;
+  onChange: (val: CategoryFilter) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const colorConfig: Record<CategoryFilter, { bg: string; shadow: string; label: string }> = {
+    focused: {
+      bg: "bg-emerald-400",
+      shadow: "shadow-[0_0_8px_rgba(52,211,153,0.6)]",
+      label: "Focused Inbox",
+    },
+    all: {
+      bg: "bg-blue-400",
+      shadow: "shadow-[0_0_8px_rgba(96,165,250,0.6)]",
+      label: "All Threads",
+    },
+    noise: {
+      bg: "bg-amber-400",
+      shadow: "shadow-[0_0_8px_rgba(251,191,36,0.6)]",
+      label: "Low Priority / Noise",
+    },
+  };
+
+  const current = colorConfig[value];
+
+  return (
+    <div className="relative shrink-0" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161921] border border-white/10 hover:border-white/20 transition-all cursor-pointer text-xs text-white/80"
+        title={`Category: ${current.label}`}
+      >
+        <span className={`size-2.5 rounded-full ${current.bg} ${current.shadow}`} />
+        <ChevronDown className="size-3 text-white/40" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-1.5 w-44 py-1 bg-[#161921] border border-white/10 rounded-xl shadow-2xl z-50 text-xs space-y-0.5">
+          {(["focused", "all", "noise"] as CategoryFilter[]).map((cat) => {
+            const conf = colorConfig[cat];
+            const isSelected = value === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => {
+                  onChange(cat);
+                  setOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                  isSelected ? "bg-white/10 text-white font-semibold" : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <span className={`size-2 rounded-full ${conf.bg} ${conf.shadow}`} />
+                <span>{conf.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function InboxPage() {
   const { selectedAccount, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const qParam = searchParams.get("q");
 
+  const [filterCategory, setFilterCategory] = useState<CategoryFilter>("focused");
   const [filterStatus, setFilterStatus] = useState<WorkflowStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -321,9 +402,10 @@ export default function InboxPage() {
     () => ({
       status: filterStatus,
       priority: filterPriority,
+      category: filterCategory,
       q: debouncedSearchQuery,
     }),
-    [filterStatus, filterPriority, debouncedSearchQuery]
+    [filterStatus, filterPriority, filterCategory, debouncedSearchQuery]
   );
 
   // Consume the paginated threads state and pagination controllers with filters
@@ -339,9 +421,20 @@ export default function InboxPage() {
   } = useThreads(selectedAccount?.id, threadFilters, authLoading);
 
   const visibleThreads = useMemo(() => {
-    if (filterStatus === "all") return threads;
-    return threads.filter((t) => t.workflow_status === filterStatus);
-  }, [threads, filterStatus]);
+    let result = threads;
+    // Search override: if search query 'q' is active, do not apply local filter exclusions so all global search matches appear
+    if (!debouncedSearchQuery.trim()) {
+      if (filterStatus !== "all") {
+        result = result.filter((t) => t.workflow_status === filterStatus);
+      }
+      if (filterCategory === "focused") {
+        result = result.filter((t) => t.category !== "others" && Boolean(t.category));
+      } else if (filterCategory === "noise") {
+        result = result.filter((t) => t.category === "others" || !t.category);
+      }
+    }
+    return result;
+  }, [threads, filterStatus, filterCategory, debouncedSearchQuery]);
 
   const observerTarget = useRef<HTMLDivElement | null>(null);
 
@@ -459,9 +552,20 @@ export default function InboxPage() {
             <span className="text-sm text-white/50 hidden sm:inline-block">Filter:</span>
           </div>
           
+          <CategoryColorDropdown
+            value={filterCategory}
+            onChange={(cat) => {
+              setSearchQuery("");
+              setFilterCategory(cat);
+            }}
+          />
+
           <select
             value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value as Priority | "all")}
+            onChange={(e) => {
+              setSearchQuery("");
+              setFilterPriority(e.target.value as Priority | "all");
+            }}
             className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
           >
             <option value="all" className="bg-[#161921] text-white/70">All Priorities</option>
@@ -472,7 +576,10 @@ export default function InboxPage() {
 
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as WorkflowStatus | "all")}
+            onChange={(e) => {
+              setSearchQuery("");
+              setFilterStatus(e.target.value as WorkflowStatus | "all");
+            }}
             className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
           >
             <option value="all" className="bg-[#161921] text-white/70">All Threads</option>
