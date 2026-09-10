@@ -40,14 +40,12 @@ function Toggle({
   return (
     <button
       onClick={onToggle}
-      className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${
-        enabled ? "bg-[#6d5bfa]" : "bg-white/10"
-      }`}
+      className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${enabled ? "bg-[#6d5bfa]" : "bg-white/10"
+        }`}
     >
       <div
-        className={`absolute top-[3px] size-4 rounded-full bg-white shadow transition-transform duration-200 ${
-          enabled ? "translate-x-[22px]" : "translate-x-[3px]"
-        }`}
+        className={`absolute top-[3px] size-4 rounded-full bg-white shadow transition-transform duration-200 ${enabled ? "translate-x-[22px]" : "translate-x-[3px]"
+          }`}
       />
     </button>
   );
@@ -60,9 +58,9 @@ function SelectOption({
   onChange,
 }: {
   label: string;
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (val: string) => void;
+  options: { value: string | number; label: string }[];
+  value: string | number;
+  onChange: (val: any) => void;
 }) {
   return (
     <div className="flex items-center justify-between py-3">
@@ -72,11 +70,10 @@ function SelectOption({
           <button
             key={opt.value}
             onClick={() => onChange(opt.value)}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-              value === opt.value
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${value === opt.value
                 ? "bg-[#6d5bfa]/20 text-[#8b7cf8] border border-[#6d5bfa]/30"
                 : "bg-white/5 text-white/30 border border-transparent hover:bg-white/8 hover:text-white/50"
-            }`}
+              }`}
           >
             {opt.label}
           </button>
@@ -96,12 +93,12 @@ export default function SettingsPage() {
     enable_auto_task: boolean;
     enable_auto_draft: boolean;
     summary_format: string;
-    ai_model: string;
+    ai_model: number;
   }>({
     enable_auto_task: true,
     enable_auto_draft: false,
     summary_format: "paragraph",
-    ai_model: "gemini-3.6-flash",
+    ai_model: 2,
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -257,14 +254,12 @@ export default function SettingsPage() {
                   {/* Status indicator */}
                   <div className="flex items-center gap-1.5" title={account.is_active ? "Background sync active" : "Background sync paused"}>
                     <div
-                      className={`size-2 rounded-full ${
-                        account.is_active ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-                      }`}
+                      className={`size-2 rounded-full ${account.is_active ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                        }`}
                     />
                     <span
-                      className={`text-[11px] font-semibold ${
-                        account.is_active ? "text-emerald-400/90" : "text-amber-400/90"
-                      }`}
+                      className={`text-[11px] font-semibold ${account.is_active ? "text-emerald-400/90" : "text-amber-400/90"
+                        }`}
                     >
                       {account.is_active ? "Active" : "Sync Paused"}
                     </span>
@@ -417,12 +412,11 @@ export default function SettingsPage() {
           <SelectOption
             label="Language model"
             options={[
-              { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
-              { value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
-              { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+              { value: 1, label: "Gemini 3.5 Flash Lite (Normal)" },
+              { value: 2, label: "Gemini 3.6 Flash (Standard)" },
             ]}
             value={profileSettings.ai_model}
-            onChange={(val) => handleUpdateProfileSetting("ai_model", val)}
+            onChange={(val) => handleUpdateProfileSetting("ai_model", Number(val))}
           />
         </div>
       </section>
@@ -463,14 +457,14 @@ export default function SettingsPage() {
               <Toggle
                 enabled={
                   settings.notification_preferences[
-                    key as keyof typeof settings.notification_preferences
+                  key as keyof typeof settings.notification_preferences
                   ]
                 }
                 onToggle={() =>
                   updateNotifications(
                     key,
                     !settings.notification_preferences[
-                      key as keyof typeof settings.notification_preferences
+                    key as keyof typeof settings.notification_preferences
                     ]
                   )
                 }
@@ -497,11 +491,10 @@ export default function SettingsPage() {
                 onClick={() =>
                   setSettings((prev) => ({ ...prev, theme }))
                 }
-                className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium capitalize transition-all duration-200 ${
-                  settings.theme === theme
+                className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium capitalize transition-all duration-200 ${settings.theme === theme
                     ? "bg-[#6d5bfa]/15 text-[#8b7cf8] border border-[#6d5bfa]/25"
                     : "bg-white/[0.03] text-white/30 border border-transparent hover:bg-white/5 hover:text-white/50"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   {settings.theme === theme && (
