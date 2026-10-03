@@ -656,7 +656,7 @@ export default function ThreadsPage() {
                   <span className={`${workflowColor[activeThread.workflow_status] || workflowColor.informational} text-[9px] font-medium px-1.5 py-0.5 rounded-full`}>
                     {workflowLabel[activeThread.workflow_status] || "Info"}
                   </span>
-                  <span className={`${priorityColor[activeThread.priority] || priorityColor.medium} text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
+                  <span className={`${priorityColor[activeThread.priority?.toLowerCase() as Priority] || priorityColor.medium} text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider`}>
                     {activeThread.priority}
                   </span>
                   <span className="flex items-center gap-1 text-[9px] text-white/30 bg-white/[0.03] px-1.5 py-0.5 rounded-full border border-white/[0.05]">

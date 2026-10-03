@@ -197,9 +197,9 @@ function ThreadRow({
 
           {/* Priority badge */}
           <span
-            className={`badge-${thread.priority || "medium"} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+            className={`badge-${thread.priority?.toLowerCase() || "medium"} text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider`}
           >
-            {priorityLabel[thread.priority] || "Medium"}
+            {priorityLabel[thread.priority?.toLowerCase() as Priority] || thread.priority || "Medium"}
           </span>
 
           {/* Workflow status */}
