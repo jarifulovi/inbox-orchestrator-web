@@ -192,14 +192,14 @@ function EmailCard({
           {/* Body */}
           <EmailContentView content={email.body} />
 
-          {/* Inline facts (tasks/commitments only) */}
-          {(email.email_facts || []).filter(f => f.fact_type === "task" || f.fact_type === "commitment").length > 0 && (
+          {/* Inline facts (tasks, commitments, questions, decisions) */}
+          {(email.email_facts || []).filter(f => f.fact_type === "task" || f.fact_type === "commitment" || f.fact_type === "question" || f.fact_type === "decision").length > 0 && (
             <div className="mt-4 space-y-2">
               <div className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-2">
                 Extracted from this email
               </div>
               {(email.email_facts || [])
-                .filter(f => f.fact_type === "task" || f.fact_type === "commitment")
+                .filter(f => f.fact_type === "task" || f.fact_type === "commitment" || f.fact_type === "question" || f.fact_type === "decision")
                 .map(fact => (
                   <div
                     key={fact.id}
