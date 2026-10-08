@@ -337,7 +337,7 @@ function CategoryColorDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161921] border border-white/10 hover:border-white/20 transition-all cursor-pointer text-xs text-white/80"
+        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#161921] border border-white/10 hover:border-white/20 transition-all cursor-pointer text-xs text-white/80 shrink-0 min-w-[130px]"
         title={`Category: ${current.label}`}
       >
         <span className={`size-2.5 rounded-full ${current.bg} ${current.shadow}`} />
@@ -566,7 +566,7 @@ export default function InboxPage() {
               setSearchQuery("");
               setFilterPriority(e.target.value as Priority | "all");
             }}
-            className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
+            className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer shrink-0 w-36"
           >
             <option value="all" className="bg-[#161921] text-white/70">All Priorities</option>
             <option value="high" className="bg-[#161921] text-white/70">High</option>
@@ -580,7 +580,7 @@ export default function InboxPage() {
               setSearchQuery("");
               setFilterStatus(e.target.value as WorkflowStatus | "all");
             }}
-            className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer"
+            className="bg-[#161921] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:ring-1 focus:ring-[#6d5bfa]/50 cursor-pointer shrink-0 w-40"
           >
             <option value="all" className="bg-[#161921] text-white/70">All Threads</option>
             <option value="needs_action" className="bg-[#161921] text-white/70">Needs Action</option>
