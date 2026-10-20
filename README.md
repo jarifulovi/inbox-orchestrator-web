@@ -76,34 +76,44 @@ The frontend is built with a focus on modularity, performance, and maintainabili
 
 ```mermaid
 graph TD
-    subgraph Routing & Layouts [src/app/]
+    subgraph APP_DIR ["Routing & Layouts (src/app/)"]
         APP_ROUTER["Next.js 16 App Router"]
         AUTH_GUARD["Protected Dashboard Layout"]
     end
 
-    subgraph Feature Modules [src/features/]
-        F_THREADS["threads/ (Components, Hooks, Types)"]
-        F_TASKS["tasks/ (Calendar, List, Export)"]
-        F_DRAFTS["drafts/ (Composer Drawer, Sync)"]
-        F_SEARCH["search/ (Semantic Debounced Hook)"]
-        F_ANALYTICS["analytics/ (Metrics & Charts)"]
-        F_AUTH["auth/ (Session & Inboxes)"]
+    subgraph FEAT_DIR ["Feature Modules (src/features/)"]
+        F_THREADS["threads/ (Timeline & Draft Drawer)"]
+        F_TASKS["tasks/ (Calendar & Task List)"]
+        F_DRAFTS["drafts/ (Draft History & Resolution)"]
+        F_SEARCH["search/ (Debounced Semantic Search)"]
+        F_ANALYTICS["analytics/ (Metrics & Leaderboard)"]
+        F_AUTH["auth/ (Session & Profile)"]
     end
 
-    subgraph State & Synchronization [Contexts]
-        AUTH_CTX["AuthContext (Active Mailbox Switcher)"]
-        THREADS_CTX["ThreadsContext (Optimistic Sync)"]
+    subgraph CTX_DIR ["State & Synchronization (Contexts)"]
+        AUTH_CTX["AuthContext (Active Inbox State)"]
+        THREADS_CTX["ThreadsContext (Optimistic List Sync)"]
     end
 
-    subgraph Presentational Primitives [src/components/]
-        UI_PRIMITIVES["Radix UI Primitives (Button, Dialog, Input)"]
-        SHELL["App Shell (Sidebar, TopBar)"]
+    subgraph UI_DIR ["Presentational Layer (src/components/)"]
+        UI_PRIMITIVES["Radix UI Primitives (Button, Dialog, Tooltip)"]
+        SHELL["Global App Shell (Sidebar, TopBar)"]
     end
 
     APP_ROUTER --> AUTH_GUARD
-    AUTH_GUARD --> Feature Modules
-    Feature Modules --> State & Synchronization
-    Feature Modules --> Presentational Primitives
+    AUTH_GUARD --> SHELL
+    AUTH_GUARD --> F_THREADS
+    AUTH_GUARD --> F_TASKS
+    AUTH_GUARD --> F_DRAFTS
+    AUTH_GUARD --> F_SEARCH
+    AUTH_GUARD --> F_ANALYTICS
+    AUTH_GUARD --> F_AUTH
+
+    F_AUTH --> AUTH_CTX
+    F_THREADS --> THREADS_CTX
+    F_THREADS --> UI_PRIMITIVES
+    F_TASKS --> UI_PRIMITIVES
+    F_DRAFTS --> UI_PRIMITIVES
 ```
 
 ### 1. Feature-Sliced Module Isolation (`src/features/`)
